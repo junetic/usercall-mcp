@@ -6,6 +6,8 @@
 
 Usercall MCP fixes that — run real user interviews directly from your AI agent.
 
+<video src="https://github.com/user-attachments/assets/8af1ccaf-25e6-4b73-b7aa-16c2753ad648" autoplay loop muted playsinline></video>
+
 ```
 Agent: "Why are users confused about onboarding?"
 
