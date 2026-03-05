@@ -5,7 +5,7 @@
 
 **AI can build products. But it still doesn't talk to users.**
 
-Usercall MCP lets AI agents run real user interviews and return structured insights with themes and verbatim quotes.
+Usercall MCP lets AI agents run voice real user interviews and return structured insights with themes and verbatim quotes.
 
 Works with Claude Desktop, Cursor, and any MCP-compatible client.
 
