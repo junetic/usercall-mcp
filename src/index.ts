@@ -117,7 +117,7 @@ async function main() {
 
   server.tool(
     "update_study",
-    "Updates an existing study. Use this to increase interview slots after creation (each additional slot requires 10 credits).",
+    "Updates an existing study. Use this to increase interview slots, add/update media, or modify the interview guide.",
     {
       study_id: z.string().uuid(),
       target_interviews: z
@@ -127,6 +127,24 @@ async function main() {
         .optional()
         .describe("Total number of interview slots for this study."),
       is_link_disabled: z.boolean().optional(),
+      study_media: z
+        .object({
+          type: z
+            .enum(["image", "prototype"])
+            .describe(
+              "Media type: 'image' for direct image URLs (.png, .jpg, .gif, .webp) or 'prototype' for Figma prototype URLs",
+            ),
+          url: z.string().url().describe("Public URL to the image or Figma prototype"),
+          description: z
+            .string()
+            .max(500)
+            .optional()
+            .describe("Alt text / context shown to participants"),
+        })
+        .optional()
+        .describe(
+          "Visual stimulus shown during all interview questions (web participants only)",
+        ),
     },
     async (input) => {
       const { study_id, ...body } = input;

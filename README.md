@@ -107,6 +107,20 @@ Creates an interview study and returns an `interview_link` to share with partici
 
 - `image`: Direct image URL (`.png`, `.jpg`, `.gif`, `.webp`)
 - `prototype`: Figma prototype URL (converted to interactive embed)
+- Media is only visible to web participants; phone callers won't see it
+
+### `update_study`
+
+Updates an existing study. Use this to increase interview slots, add/update media, or disable the link.
+
+| Field               | Type        | Required |
+| ------------------- | ----------- | -------- |
+| `study_id`          | uuid string | yes      |
+| `target_interviews` | number      | no       |
+| `is_link_disabled`  | boolean     | no       |
+| `study_media`       | object      | no       |
+
+The `study_media` object follows the same schema as in `create_study`.
 
 ### `get_study_status`
 
