@@ -4,7 +4,7 @@
 
 **AI can build products. But it still doesn't talk to users.**
 
-Usercall MCP fixes that — run real user interviews directly from your AI agent.
+Usercall MCP lets AI agents run real user interviews and return structured insights with themes and traceable user quotes.
 
 <video src="https://github.com/user-attachments/assets/8af1ccaf-25e6-4b73-b7aa-16c2753ad648" autoplay loop muted playsinline></video>
 
@@ -37,6 +37,18 @@ The returned `interview_link` can be shared with participants through email, Sla
   ]
 }
 ```
+
+## How it works
+
+AI Agent
+↓
+Usercall MCP
+↓
+Usercall Agent API
+↓
+Real user interviews
+↓
+Themes and verbatim quotes returned to the agent
 
 ---
 
@@ -78,6 +90,55 @@ Sign in at [app.usercall.co](https://app.usercall.co) → **Home → Developer �
     }
   }
 }
+```
+
+---
+
+## Example agent prompt
+
+Once installed, you can ask your AI agent to run research like this:
+
+```
+Run user interviews to understand why users drop off during onboarding.
+
+Context:
+- B2B SaaS product
+- 3-step signup flow
+- Drop-off occurs between step 2 and step 3
+
+Goal:
+Identify the main sources of confusion and friction.
+
+Target interviews: 5
+Language: en
+
+Show participants this prototype during the interview:
+https://www.figma.com/proto/abcd1234/onboarding-flow
+```
+
+The agent will:
+
+1. create a study
+2. attach the prototype as interview stimulus
+3. return an interview link
+4. collect user responses
+5. retrieve themes and verbatim quotes
+
+---
+
+### Structured example
+
+```
+create_study
+key_research_goal: "Understand why users drop off during onboarding"
+business_context: "B2B SaaS signup flow"
+target_interviews: 5
+language: "en"
+
+study_media:
+  type: "prototype"
+  url: "https://www.figma.com/proto/abcd1234/onboarding-flow"
+  description: "New onboarding flow concept"
 ```
 
 Restart your client. The three tools below will be available immediately.
@@ -168,7 +229,7 @@ Summary/full responses include study progress fields and analysis output.
    → "analyzing"
 
 4. get_study_results
-   → themes, summaries, verbatim quotes
+   → themes + verbatim quotes returned to the agent
 ```
 
 ### With visual stimulus
