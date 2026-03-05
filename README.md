@@ -1,6 +1,7 @@
 # Usercall MCP
 
 [![npm](https://img.shields.io/npm/v/@usercall/mcp)](https://www.npmjs.com/package/@usercall/mcp)
+[![License](https://img.shields.io/github/license/junetic/usercall-mcp)](LICENSE)
 
 **AI can build products. But it still doesn't talk to users.**
 
