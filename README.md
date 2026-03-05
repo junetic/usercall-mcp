@@ -9,6 +9,20 @@ Usercall MCP lets AI agents run real user interviews and return structured insig
 
 <video src="https://github.com/user-attachments/assets/8af1ccaf-25e6-4b73-b7aa-16c2753ad648" autoplay loop muted playsinline></video>
 
+Works with Claude Desktop, Cursor, and any MCP-compatible client.
+
+## Why this exists
+
+AI agents can now build and ship products extremely quickly.
+
+But most agents still rely on synthetic feedback or assumptions about users.
+
+Usercall MCP lets agents gather real qualitative feedback directly from users and turn it into structured insights.
+
+---
+
+## Example workflow
+
 ```
 Agent: "Why are users confused about onboarding?"
 
