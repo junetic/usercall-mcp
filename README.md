@@ -5,7 +5,7 @@
 
 **AI can build products. But it still doesn't talk to users.**
 
-Usercall MCP lets AI agents run real user interviews and return structured insights with themes and traceable user quotes.
+Usercall MCP lets AI agents run real user interviews and return structured insights with themes and verbatim user quotes.
 
 <video src="https://github.com/user-attachments/assets/8af1ccaf-25e6-4b73-b7aa-16c2753ad648" autoplay loop muted playsinline></video>
 
@@ -61,7 +61,7 @@ Themes and verbatim quotes returned to the agent
 
 ---
 
-## Quick start
+## Try it in 60 seconds
 
 ### 1. Get an API key
 
@@ -101,11 +101,9 @@ Sign in at [app.usercall.co](https://app.usercall.co) → **Home → Developer �
 }
 ```
 
----
+Restart your MCP client.
 
-## Example agent prompt
-
-Once installed, you can ask your AI agent to run research like this:
+### 3. Ask your agent
 
 ```
 Run user interviews to understand why users drop off during onboarding.
@@ -113,13 +111,11 @@ Run user interviews to understand why users drop off during onboarding.
 Context:
 - B2B SaaS product
 - 3-step signup flow
-- Drop-off occurs between step 2 and step 3
 
 Goal:
-Identify the main sources of confusion and friction.
+Identify confusion points and friction.
 
 Target interviews: 5
-Language: en
 
 Show participants this prototype during the interview:
 https://www.figma.com/proto/abcd1234/onboarding-flow
@@ -127,15 +123,16 @@ https://www.figma.com/proto/abcd1234/onboarding-flow
 
 The agent will:
 
-1. create a study
-2. attach the prototype as interview stimulus
-3. return an interview link
-4. collect user responses
-5. retrieve themes and verbatim quotes
+1. create a study  
+2. return an interview link  
+3. collect responses  
+4. return themes and verbatim quotes
 
 ---
 
-### Structured example
+## Structured tool example
+
+Equivalent `create_study` tool call:
 
 ```
 create_study
@@ -149,8 +146,6 @@ study_media:
   url: "https://www.figma.com/proto/abcd1234/onboarding-flow"
   description: "New onboarding flow concept"
 ```
-
-Restart your client. The three tools below will be available immediately.
 
 ---
 
