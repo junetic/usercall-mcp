@@ -5,11 +5,12 @@
 
 **AI can build products. But it still doesn't talk to users.**
 
-Usercall MCP lets AI agents run real user interviews and return structured insights with themes and verbatim user quotes.
+Usercall MCP lets AI agents run real user interviews and return structured insights with themes and verbatim quotes.
+
+Works with Claude Desktop, Cursor, and any MCP-compatible client.
 
 <video src="https://github.com/user-attachments/assets/8af1ccaf-25e6-4b73-b7aa-16c2753ad648" autoplay loop muted playsinline></video>
 
-Works with Claude Desktop, Cursor, and any MCP-compatible client.
 
 ## Why this exists
 
@@ -17,7 +18,7 @@ AI agents can now build and ship products extremely quickly.
 
 But most agents still rely on synthetic feedback or assumptions about users.
 
-Usercall MCP lets agents gather real qualitative feedback directly from users and turn it into structured insights.
+Usercall MCP lets agents gather real qualitative feedback directly from users.
 
 ---
 
@@ -26,12 +27,14 @@ Usercall MCP lets agents gather real qualitative feedback directly from users an
 ```
 Agent: "Why are users confused about onboarding?"
 
-→ create_study       returns interview_link
-→ share with users   collect responses
-→ get_study_results  returns themes and quotes
+→ create_study
+→ share interview_link with users
+→ get_study_results
 ```
 
 The returned `interview_link` can be shared with participants through email, Slack, Discord, or in-product prompts.
+
+Example result:
 
 ```json
 {
