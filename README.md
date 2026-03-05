@@ -1,4 +1,4 @@
-# Usercall MCP
+# Usercall MCP - AI agents that talk to real users
 
 [![npm](https://img.shields.io/npm/v/@usercall/mcp)](https://www.npmjs.com/package/@usercall/mcp)
 [![License](https://img.shields.io/github/license/junetic/usercall-mcp)](LICENSE)
