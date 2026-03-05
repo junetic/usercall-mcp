@@ -91,7 +91,7 @@ Creates an interview study and returns an `interview_link` to share with partici
 | `key_research_goal` | string | yes |
 | `business_context` | string | yes |
 | `additional_context_prompt` | string | no |
-| `target_n` | number | no |
+| `target_interviews` | number | no |
 | `language` | `auto \| en \| ko` | no |
 | `duration_minutes` | number | no |
 | `metadata` | object | no |
@@ -106,6 +106,9 @@ Returns the current lifecycle status of a study.
 
 Status values: `running` · `analyzing` · `complete`
 
+Response includes interview progress fields, including
+`completed_interviews` and `target_interviews`.
+
 ### `get_study_results`
 
 Returns analysis output once the study is complete.
@@ -114,6 +117,8 @@ Returns analysis output once the study is complete.
 |---|---|---|
 | `study_id` | uuid string | yes |
 | `format` | `summary \| full` | no |
+
+Summary/full responses include study progress fields and analysis output.
 
 ---
 

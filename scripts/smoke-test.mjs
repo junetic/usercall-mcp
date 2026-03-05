@@ -22,7 +22,7 @@ const response = await fetch(`${baseUrl.replace(/\/+$/, '')}/api/v1/agent/studie
   body: JSON.stringify({
     key_research_goal: keyResearchGoal,
     business_context: businessContext,
-    target_n: 1,
+    target_interviews: 1,
     language: 'en',
     duration_minutes: 20,
   }),

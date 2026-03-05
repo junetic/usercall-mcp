@@ -1,17 +1,17 @@
 #!/usr/bin/env node
-import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { z } from 'zod';
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { z } from "zod";
 
 const apiKey = process.env.USERCALL_API_KEY;
-const baseUrl = process.env.USERCALL_BASE_URL ?? 'https://app.usercall.co';
+const baseUrl = process.env.USERCALL_BASE_URL ?? "https://app.usercall.co";
 
 if (!apiKey) {
-  throw new Error('Missing USERCALL_API_KEY');
+  throw new Error("Missing USERCALL_API_KEY");
 }
 
 function endpoint(path: string) {
-  return `${baseUrl.replace(/\/+$/, '')}${path}`;
+  return `${baseUrl.replace(/\/+$/, "")}${path}`;
 }
 
 async function callUsercallApi(path: string, init?: RequestInit) {
@@ -19,7 +19,7 @@ async function callUsercallApi(path: string, init?: RequestInit) {
     ...init,
     headers: {
       Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
       ...(init?.headers ?? {}),
     },
   });
@@ -30,7 +30,7 @@ async function callUsercallApi(path: string, init?: RequestInit) {
     let message = `Usercall API error (${response.status})`;
     try {
       const payload = JSON.parse(text);
-      if (typeof payload?.message === 'string') message = payload.message;
+      if (typeof payload?.message === "string") message = payload.message;
     } catch {}
     throw new Error(message);
   }
@@ -42,7 +42,7 @@ function result(payload: unknown) {
   return {
     content: [
       {
-        type: 'text' as const,
+        type: "text" as const,
         text: JSON.stringify(payload),
       },
     ],
@@ -51,24 +51,24 @@ function result(payload: unknown) {
 
 async function main() {
   const server = new McpServer({
-    name: 'usercall-mcp',
-    version: '0.1.0',
+    name: "usercall-mcp",
+    version: "0.1.0",
   });
 
   server.tool(
-    'create_study',
+    "create_study",
     {
       key_research_goal: z.string(),
       business_context: z.string(),
       additional_context_prompt: z.string().optional(),
-      target_n: z.number().int().positive().optional(),
-      language: z.enum(['auto', 'en', 'ko']).optional(),
+      target_interviews: z.number().int().positive().default(1),
+      language: z.enum(["auto", "en"]).optional(),
       duration_minutes: z.number().int().positive().optional(),
       metadata: z.record(z.string(), z.unknown()).optional(),
     },
     async (input) => {
-      const payload = await callUsercallApi('/api/v1/agent/studies', {
-        method: 'POST',
+      const payload = await callUsercallApi("/api/v1/agent/studies", {
+        method: "POST",
         body: JSON.stringify(input),
       });
 
@@ -77,7 +77,7 @@ async function main() {
   );
 
   server.tool(
-    'get_study_status',
+    "get_study_status",
     {
       study_id: z.string().uuid(),
     },
@@ -90,13 +90,13 @@ async function main() {
   );
 
   server.tool(
-    'get_study_results',
+    "get_study_results",
     {
       study_id: z.string().uuid(),
-      format: z.enum(['summary', 'full']).optional(),
+      format: z.enum(["summary", "full"]).optional(),
     },
     async (input) => {
-      const format = input.format ?? 'summary';
+      const format = input.format ?? "summary";
       const payload = await callUsercallApi(
         `/api/v1/agent/studies/${input.study_id}/results?format=${format}`,
       );
