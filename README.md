@@ -42,13 +42,21 @@ The returned `interview_link` can be shared with participants through email, Sla
 ## How it works
 
 AI Agent
+
 ↓
+
 Usercall MCP
+
 ↓
+
 Usercall Agent API
+
 ↓
+
 Real user interviews
+
 ↓
+
 Themes and verbatim quotes returned to the agent
 
 ---
