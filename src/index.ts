@@ -1,9 +1,10 @@
+#!/usr/bin/env node
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
 
 const apiKey = process.env.USERCALL_API_KEY;
-const baseUrl = process.env.USERCALL_BASE_URL ?? 'https://usercall.co';
+const baseUrl = process.env.USERCALL_BASE_URL ?? 'https://app.usercall.co';
 
 if (!apiKey) {
   throw new Error('Missing USERCALL_API_KEY');
@@ -24,17 +25,17 @@ async function callUsercallApi(path: string, init?: RequestInit) {
   });
 
   const text = await response.text();
-  const payload = text.length ? JSON.parse(text) : {};
 
   if (!response.ok) {
-    const message =
-      typeof payload?.message === 'string'
-        ? payload.message
-        : `Usercall API error (${response.status})`;
+    let message = `Usercall API error (${response.status})`;
+    try {
+      const payload = JSON.parse(text);
+      if (typeof payload?.message === 'string') message = payload.message;
+    } catch {}
     throw new Error(message);
   }
 
-  return payload;
+  return text.length ? JSON.parse(text) : {};
 }
 
 function result(payload: unknown) {

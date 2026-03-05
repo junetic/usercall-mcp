@@ -1,4 +1,4 @@
-const baseUrl = process.env.USERCALL_BASE_URL ?? 'https://usercall.co';
+const baseUrl = process.env.USERCALL_BASE_URL ?? 'https://app.usercall.co';
 const apiKey = process.env.USERCALL_API_KEY;
 const keyResearchGoal =
   process.env.KEY_RESEARCH_GOAL ?? 'Smoke test: validate MCP API connectivity';
