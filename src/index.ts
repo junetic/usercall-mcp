@@ -49,6 +49,20 @@ function result(payload: unknown) {
   };
 }
 
+function appendNote(payload: unknown, note: string) {
+  if (payload && typeof payload === "object" && !Array.isArray(payload)) {
+    return {
+      ...(payload as Record<string, unknown>),
+      _note: note,
+    };
+  }
+
+  return {
+    payload,
+    _note: note,
+  };
+}
+
 async function main() {
   const server = new McpServer({
     name: "usercall-mcp",
@@ -57,11 +71,11 @@ async function main() {
 
   server.tool(
     "create_study",
+    "Creates a user interview study and returns an interview_link to share with participants. Starts with 1 interview slot.",
     {
       key_research_goal: z.string(),
       business_context: z.string(),
       additional_context_prompt: z.string().optional(),
-      target_interviews: z.number().int().positive().default(1),
       language: z.enum(["auto", "en"]).optional(),
       duration_minutes: z.number().int().positive().optional(),
       metadata: z.record(z.string(), z.unknown()).optional(),
@@ -69,9 +83,40 @@ async function main() {
     async (input) => {
       const payload = await callUsercallApi("/api/v1/agent/studies", {
         method: "POST",
-        body: JSON.stringify(input),
+        body: JSON.stringify({ ...input, target_interviews: 1 }),
       });
 
+      return result(
+        appendNote(
+          payload,
+          "Study created with 1 interview slot. Share the interview_link with 1 participant. Use update_study to add more slots.",
+        ),
+      );
+    },
+  );
+
+  server.tool(
+    "update_study",
+    "Updates an existing study. Use this to increase interview slots after creation (each additional slot requires 10 credits).",
+    {
+      study_id: z.string().uuid(),
+      target_interviews: z
+        .number()
+        .int()
+        .positive()
+        .optional()
+        .describe("Total number of interview slots for this study."),
+      is_link_disabled: z.boolean().optional(),
+    },
+    async (input) => {
+      const { study_id, ...body } = input;
+      const payload = await callUsercallApi(
+        `/api/v1/agent/studies/${study_id}`,
+        {
+          method: "PATCH",
+          body: JSON.stringify(body),
+        },
+      );
       return result(payload);
     },
   );
@@ -91,6 +136,7 @@ async function main() {
 
   server.tool(
     "get_study_results",
+    "Returns analysis results. When presenting results, always quote specific participant responses verbatim using the quotes field in each theme.",
     {
       study_id: z.string().uuid(),
       format: z.enum(["summary", "full"]).optional(),
@@ -100,7 +146,12 @@ async function main() {
       const payload = await callUsercallApi(
         `/api/v1/agent/studies/${input.study_id}/results?format=${format}`,
       );
-      return result(payload);
+      return result(
+        appendNote(
+          payload,
+          "When presenting these results, include verbatim participant quotes from each theme's quotes array. Do not paraphrase — show the actual words.",
+        ),
+      );
     },
   );
 
