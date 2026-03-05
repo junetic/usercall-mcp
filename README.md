@@ -12,6 +12,8 @@ Agent: "Why are users confused about onboarding?"
 → get_study_results  returns themes and quotes
 ```
 
+The returned `interview_link` can be shared with participants through email, Slack, Discord, or in-product prompts.
+
 ```json
 {
   "themes": [
@@ -26,9 +28,7 @@ Agent: "Why are users confused about onboarding?"
     {
       "name": "Pricing confusion",
       "summary": "Free plan limits were not clearly communicated.",
-      "quotes": [
-        "I wasn't sure if the free plan included analytics."
-      ]
+      "quotes": ["I wasn't sure if the free plan included analytics."]
     }
   ]
 }
@@ -86,22 +86,34 @@ Restart your client. The three tools below will be available immediately.
 
 Creates an interview study and returns an `interview_link` to share with participants.
 
-| Field | Type | Required |
-|---|---|---|
-| `key_research_goal` | string | yes |
-| `business_context` | string | yes |
-| `additional_context_prompt` | string | no |
-| `target_interviews` | number | no |
-| `language` | `auto \| en \| ko` | no |
-| `duration_minutes` | number | no |
-| `metadata` | object | no |
+| Field                       | Type               | Required |
+| --------------------------- | ------------------ | -------- |
+| `key_research_goal`         | string             | yes      |
+| `business_context`          | string             | yes      |
+| `additional_context_prompt` | string             | no       |
+| `target_interviews`         | number             | no       |
+| `language`                  | `auto \| en \| ko` | no       |
+| `duration_minutes`          | number             | no       |
+| `metadata`                  | object             | no       |
+| `study_media`               | object             | no       |
+
+**study_media** (optional) — visual stimulus shown during all interview questions:
+
+| Field         | Type                   | Required |
+| ------------- | ---------------------- | -------- |
+| `type`        | `image \| prototype`   | yes      |
+| `url`         | string (URL)           | yes      |
+| `description` | string (max 500 chars) | no       |
+
+- `image`: Direct image URL (`.png`, `.jpg`, `.gif`, `.webp`)
+- `prototype`: Figma prototype URL (converted to interactive embed)
 
 ### `get_study_status`
 
 Returns the current lifecycle status of a study.
 
-| Field | Type |
-|---|---|
+| Field      | Type        |
+| ---------- | ----------- |
 | `study_id` | uuid string |
 
 Status values: `running` · `analyzing` · `complete`
@@ -113,10 +125,10 @@ Response includes interview progress fields, including
 
 Returns analysis output once the study is complete.
 
-| Field | Type | Required |
-|---|---|---|
-| `study_id` | uuid string | yes |
-| `format` | `summary \| full` | no |
+| Field      | Type              | Required |
+| ---------- | ----------------- | -------- |
+| `study_id` | uuid string       | yes      |
+| `format`   | `summary \| full` | no       |
 
 Summary/full responses include study progress fields and analysis output.
 
@@ -140,6 +152,24 @@ Summary/full responses include study progress fields and analysis output.
 4. get_study_results
    → themes, summaries, verbatim quotes
 ```
+
+### With visual stimulus
+
+```
+1. create_study
+   key_research_goal: "Get feedback on new dashboard design"
+   business_context: "Redesigning analytics dashboard for power users"
+   study_media:
+     type: "image"
+     url: "https://example.com/dashboard-mockup.png"
+     description: "New dashboard design concept"
+
+   → returns { study_id, interview_link }
+
+2. Share interview_link — participants see the mockup during interview
+```
+
+For Figma prototypes, use `type: "prototype"` with a Figma proto URL.
 
 ---
 
@@ -168,12 +198,12 @@ USERCALL_API_KEY="your_key_here" pnpm smoke
 
 ## Troubleshooting
 
-| Error | Fix |
-|---|---|
-| `Missing USERCALL_API_KEY` | Set the env var before starting |
-| `401 Unauthorized` | Invalid or revoked API key |
-| `402 Insufficient credits` | Add credits at app.usercall.co |
-| `500` on create | Verify your key has access to Agent API v1 |
+| Error                      | Fix                                        |
+| -------------------------- | ------------------------------------------ |
+| `Missing USERCALL_API_KEY` | Set the env var before starting            |
+| `401 Unauthorized`         | Invalid or revoked API key                 |
+| `402 Insufficient credits` | Add credits at app.usercall.co             |
+| `500` on create            | Verify your key has access to Agent API v1 |
 
 ---
 

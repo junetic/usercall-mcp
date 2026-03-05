@@ -71,7 +71,7 @@ async function main() {
 
   server.tool(
     "create_study",
-    "Creates a user interview study and returns an interview_link to share with participants. Starts with 1 interview slot.",
+    "Creates a user interview study and returns an interview_link to share with participants. Starts with 1 interview slot. Optionally include study_media to show an image or Figma prototype during the interview.",
     {
       key_research_goal: z.string(),
       business_context: z.string(),
@@ -79,6 +79,27 @@ async function main() {
       language: z.enum(["auto", "en"]).optional(),
       duration_minutes: z.number().int().positive().optional(),
       metadata: z.record(z.string(), z.unknown()).optional(),
+      study_media: z
+        .object({
+          type: z
+            .enum(["image", "prototype"])
+            .describe(
+              "Media type: 'image' for direct image URLs (.png, .jpg, .gif, .webp) or 'prototype' for Figma prototype URLs",
+            ),
+          url: z
+            .string()
+            .url()
+            .describe("Public URL to the image or Figma prototype"),
+          description: z
+            .string()
+            .max(500)
+            .optional()
+            .describe("Alt text / context shown to participants"),
+        })
+        .optional()
+        .describe(
+          "Visual stimulus shown during all interview questions (web participants only)",
+        ),
     },
     async (input) => {
       const payload = await callUsercallApi("/api/v1/agent/studies", {
@@ -86,12 +107,11 @@ async function main() {
         body: JSON.stringify({ ...input, target_interviews: 1 }),
       });
 
-      return result(
-        appendNote(
-          payload,
-          "Study created with 1 interview slot. Share the interview_link with 1 participant. Use update_study to add more slots.",
-        ),
-      );
+      const note = input.study_media
+        ? "Study created with 1 interview slot and media attachment. Share the interview_link with 1 participant (media visible on web only). Use update_study to add more slots."
+        : "Study created with 1 interview slot. Share the interview_link with 1 participant. Use update_study to add more slots.";
+
+      return result(appendNote(payload, note));
     },
   );
 
