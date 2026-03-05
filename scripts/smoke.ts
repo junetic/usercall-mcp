@@ -1,3 +1,5 @@
+export {};
+
 const baseUrl = process.env.USERCALL_BASE_URL ?? 'https://app.usercall.co';
 const apiKey = process.env.USERCALL_API_KEY;
 const keyResearchGoal =
@@ -9,9 +11,7 @@ if (!apiKey) {
   throw new Error('Missing USERCALL_API_KEY');
 }
 
-console.log(
-  'Running smoke test (creates a real study and reserves credits).',
-);
+console.log('Running smoke test (creates a real study and reserves credits).');
 
 const response = await fetch(`${baseUrl.replace(/\/+$/, '')}/api/v1/agent/studies`, {
   method: 'POST',
