@@ -193,6 +193,26 @@ async function main() {
     },
   );
 
+  server.tool(
+    "delete_study",
+    "Permanently deletes a study and all associated data. Releases unused reserved credits.",
+    {
+      study_id: z.string().uuid(),
+    },
+    async (input) => {
+      const payload = await callUsercallApi(
+        `/api/v1/agent/studies/${input.study_id}`,
+        { method: "DELETE" },
+      );
+      return result(
+        appendNote(
+          payload,
+          "Study permanently deleted. All recordings and data have been removed. Unused credits have been released.",
+        ),
+      );
+    },
+  );
+
   const transport = new StdioServerTransport();
   await server.connect(transport);
 }

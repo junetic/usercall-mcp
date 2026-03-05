@@ -232,6 +232,14 @@ Returns analysis output once the study is complete.
 
 Summary/full responses include study progress fields and analysis output.
 
+### `delete_study`
+
+Permanently deletes a study and all associated data (recordings, transcripts). Releases unused reserved credits.
+
+| Field      | Type        | Required |
+| ---------- | ----------- | -------- |
+| `study_id` | uuid string | yes      |
+
 ---
 
 ## Example workflow
