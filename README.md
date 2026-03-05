@@ -1,5 +1,7 @@
 # Usercall MCP
 
+[![npm](https://img.shields.io/npm/v/@usercall/mcp)](https://www.npmjs.com/package/@usercall/mcp)
+
 **AI can build products. But it still doesn't talk to users.**
 
 Usercall MCP fixes that — run real user interviews directly from your AI agent.
