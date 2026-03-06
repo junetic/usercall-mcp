@@ -11,6 +11,9 @@ Works with Claude Desktop, Cursor, and any MCP-compatible client.
 
 <video src="https://github.com/user-attachments/assets/8af1ccaf-25e6-4b73-b7aa-16c2753ad648" autoplay loop muted playsinline></video>
 
+<a href="https://glama.ai/mcp/servers/@junetic/mcp-usercall">
+  <img width="380" height="200" src="https://glama.ai/mcp/servers/@junetic/mcp-usercall/badge" alt="mcp-usercall MCP server" />
+</a>
 
 ## Why this exists
 
