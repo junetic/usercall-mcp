@@ -32,7 +32,7 @@ Agent: "Why are users confused about onboarding?"
 → get_study_results
 ```
 
-The returned `interview_link` can be shared with participants through email, Slack, Discord, or in-product prompts.
+The returned `interview_link` can be shared with participants through email, Slack, Discord, or [in-product prompts](https://www.usercall.co/research-triggers).
 
 Example result:
 
