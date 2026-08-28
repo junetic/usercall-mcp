@@ -5,9 +5,7 @@
 
 **AI can build products. But it still doesn't talk to users.**
 
-Usercall MCP lets AI agents run user interviews via voice calls and return structured insights with themes and verbatim quotes.
-
-Works with Claude Desktop, Cursor, and any MCP-compatible client.
+Usercall MCP lets AI agents run user interviews via voice or text and return structured insights with themes and verbatim quotes.
 
 <video src="https://github.com/user-attachments/assets/8af1ccaf-25e6-4b73-b7aa-16c2753ad648" autoplay loop muted playsinline></video>
 
@@ -19,6 +17,25 @@ AI agents can now build and ship products extremely quickly.
 But most agents still rely on synthetic feedback or assumptions about users.
 
 Usercall MCP lets agents gather real qualitative feedback directly from users.
+
+---
+
+## Choose a connection
+
+### Recommended: hosted MCP (Claude, ChatGPT, Cursor)
+
+Add **`https://mcp.usercall.co`** as a remote MCP connector / custom connector.
+
+- OAuth sign-in (no API key, no `npx`)
+- Same five tools as this package
+- Docs: [app.usercall.co/docs/mcp](https://app.usercall.co/docs/mcp)
+
+### This package: local / API-key / machine-to-machine
+
+Use `@usercall/mcp` over stdio when you want a Bearer API key (scripts, local clients, M2M).
+
+1. Sign in at [app.usercall.co](https://app.usercall.co) → **Home → Developer → Create API key**
+2. Run `npx -y @usercall/mcp` with `USERCALL_API_KEY`
 
 ---
 
@@ -62,7 +79,7 @@ AI Agent
 
 ↓
 
-Usercall MCP
+Usercall MCP (hosted OAuth **or** this stdio package)
 
 ↓
 
@@ -78,7 +95,7 @@ Themes and verbatim quotes returned to the agent
 
 ---
 
-## Try it in 60 seconds
+## Local install (API key)
 
 ### 1. Get an API key
 
@@ -118,6 +135,8 @@ Sign in at [app.usercall.co](https://app.usercall.co) → **Home → Developer �
 }
 ```
 
+For Claude, ChatGPT, or Cursor **remote** connectors, prefer `https://mcp.usercall.co` instead of this JSON config.
+
 Restart your MCP client.
 
 ### 3. Ask your agent
@@ -133,6 +152,8 @@ Goal:
 Identify confusion points and friction.
 
 Target interviews: 5
+Language: ko
+Interview mode: voice
 
 Show participants this prototype during the interview:
 https://www.figma.com/proto/abcd1234/onboarding-flow
@@ -140,9 +161,9 @@ https://www.figma.com/proto/abcd1234/onboarding-flow
 
 The agent will:
 
-1. create a study  
-2. return an interview link  
-3. collect responses  
+1. create a study
+2. return an interview link
+3. collect responses
 4. return themes and verbatim quotes
 
 ---
@@ -157,6 +178,7 @@ key_research_goal: "Understand why users drop off during onboarding"
 business_context: "B2B SaaS signup flow"
 target_interviews: 5
 language: "en"
+interview_mode: "voice"
 
 study_media:
   type: "prototype"
@@ -170,18 +192,23 @@ study_media:
 
 ### `create_study`
 
-Creates an interview study and returns an `interview_link` to share with participants.
+Creates an interview study and returns `study_id` plus an `interview_link` to share with participants.
 
-| Field                       | Type               | Required |
-| --------------------------- | ------------------ | -------- |
-| `key_research_goal`         | string             | yes      |
-| `business_context`          | string             | yes      |
-| `additional_context_prompt` | string             | no       |
-| `target_interviews`         | number             | no       |
-| `language`                  | `auto \| en \| ko` | no       |
-| `duration_minutes`          | number             | no       |
-| `metadata`                  | object             | no       |
-| `study_media`               | object             | no       |
+One active agent study is allowed per personal account. If credits are insufficient, the API returns **402** with `checkout_url`.
+
+| Field                       | Type                                 | Required | Default |
+| --------------------------- | ------------------------------------ | -------- | ------- |
+| `key_research_goal`         | string (5–2000)                      | yes      |         |
+| `business_context`          | string (5–2000)                      | yes      |         |
+| `additional_context_prompt` | string                               | no       |         |
+| `target_interviews`         | number (1–200)                       | no       | `1`     |
+| `language`                  | `auto \| en \| ko`                   | no       | `auto`  |
+| `duration_minutes`          | number (5–65)                        | no       | `12`    |
+| `interview_mode`            | `voice \| text \| voice_and_text`    | no       | `voice` |
+| `metadata`                  | object                               | no       |         |
+| `study_media`               | object                               | no       |         |
+
+Research goal cannot be changed after create.
 
 **study_media** (optional) — visual stimulus shown during all interview questions:
 
@@ -197,16 +224,21 @@ Creates an interview study and returns an `interview_link` to share with partici
 
 ### `update_study`
 
-Updates an existing study. Use this to increase interview slots, add/update media, or disable the link.
+Updates an existing study. Use this to change interview slots, interview mode, guide copy, questions, or media. Research goal cannot be changed.
 
-| Field               | Type        | Required |
-| ------------------- | ----------- | -------- |
-| `study_id`          | uuid string | yes      |
-| `target_interviews` | number      | no       |
-| `is_link_disabled`  | boolean     | no       |
-| `study_media`       | object      | no       |
+| Field                    | Type                              | Required |
+| ------------------------ | --------------------------------- | -------- |
+| `study_id`               | uuid string                       | yes      |
+| `target_interviews`      | number (1–200)                    | no       |
+| `is_link_disabled`       | boolean                           | no       |
+| `ai_agent_intro_message` | string                            | no       |
+| `key_learning_goals`     | string                            | no       |
+| `workflow_end_message`   | string                            | no       |
+| `workflow_questions`     | string[]                          | no       |
+| `interview_mode`         | `voice \| text \| voice_and_text` | no       |
+| `study_media`            | object or `null`                  | no       |
 
-The `study_media` object follows the same schema as in `create_study`.
+Pass `study_media: null` to clear media. The `study_media` object follows the same schema as in `create_study`.
 
 ### `get_study_status`
 
@@ -248,6 +280,9 @@ Permanently deletes a study and all associated data (recordings, transcripts). R
 1. create_study
    key_research_goal: "Why do users drop off during onboarding?"
    business_context: "B2B SaaS, 3-step signup flow"
+   target_interviews: 5
+   language: "ko"
+   interview_mode: "voice"
 
    → returns { study_id, interview_link }
 
@@ -284,7 +319,7 @@ For Figma prototypes, use `type: "prototype"` with a Figma proto URL.
 ## Requirements
 
 - Node.js 18+
-- A valid Usercall API key
+- A valid Usercall API key (local / API-key path only)
 
 ---
 
@@ -306,12 +341,14 @@ USERCALL_API_KEY="your_key_here" pnpm smoke
 
 ## Troubleshooting
 
-| Error                      | Fix                                        |
-| -------------------------- | ------------------------------------------ |
-| `Missing USERCALL_API_KEY` | Set the env var before starting            |
-| `401 Unauthorized`         | Invalid or revoked API key                 |
-| `402 Insufficient credits` | Add credits at app.usercall.co             |
-| `500` on create            | Verify your key has access to Agent API v1 |
+| Error                      | Fix                                                                 |
+| -------------------------- | ------------------------------------------------------------------- |
+| `Missing USERCALL_API_KEY` | Set the env var before starting this stdio package                  |
+| `401 Unauthorized`         | Invalid or revoked API key                                          |
+| `402 Insufficient credits` | Open the returned `checkout_url`, or add credits at app.usercall.co |
+| `500` on create            | Verify your key has access to Agent API v1                          |
+
+Remote Claude / ChatGPT / Cursor connectors should use `https://mcp.usercall.co` (OAuth). This package is the API-key stdio path.
 
 ---
 
