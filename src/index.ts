@@ -3,11 +3,52 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 
+const PACKAGE_VERSION = "0.2.0";
 const apiKey = process.env.USERCALL_API_KEY;
 const baseUrl = process.env.USERCALL_BASE_URL ?? "https://app.usercall.co";
 
 if (!apiKey) {
   throw new Error("Missing USERCALL_API_KEY");
+}
+
+const studyMediaSchema = z
+  .object({
+    type: z
+      .enum(["image", "prototype"])
+      .describe(
+        "Media type: 'image' for direct image URLs (.png, .jpg, .gif, .webp) or 'prototype' for Figma prototype URLs",
+      ),
+    url: z
+      .string()
+      .url()
+      .describe("Public URL to the image or Figma prototype"),
+    description: z
+      .string()
+      .max(500)
+      .optional()
+      .describe("Alt text / context shown to participants"),
+  })
+  .describe(
+    "Visual stimulus shown during all interview questions (web participants only)",
+  );
+
+class UsercallApiError extends Error {
+  readonly status: number;
+  readonly checkoutUrl?: string;
+  readonly payload: unknown;
+
+  constructor(
+    status: number,
+    message: string,
+    payload: unknown,
+    checkoutUrl?: string,
+  ) {
+    super(message);
+    this.name = "UsercallApiError";
+    this.status = status;
+    this.payload = payload;
+    this.checkoutUrl = checkoutUrl;
+  }
 }
 
 function endpoint(path: string) {
@@ -28,11 +69,30 @@ async function callUsercallApi(path: string, init?: RequestInit) {
 
   if (!response.ok) {
     let message = `Usercall API error (${response.status})`;
+    let payload: unknown = text;
+    let checkoutUrl: string | undefined;
+
     try {
-      const payload = JSON.parse(text);
-      if (typeof payload?.message === "string") message = payload.message;
+      const parsed = JSON.parse(text);
+      payload = parsed;
+      if (typeof parsed?.message === "string") message = parsed.message;
+      if (typeof parsed?.checkout_url === "string") {
+        checkoutUrl = parsed.checkout_url;
+      }
     } catch {}
-    throw new Error(message);
+
+    if (response.status === 402) {
+      throw new UsercallApiError(
+        402,
+        checkoutUrl
+          ? `${message} Add credits via checkout_url.`
+          : `${message} Add credits at https://app.usercall.co.`,
+        payload,
+        checkoutUrl,
+      );
+    }
+
+    throw new UsercallApiError(response.status, message, payload, checkoutUrl);
   }
 
   return text.length ? JSON.parse(text) : {};
@@ -47,6 +107,27 @@ function result(payload: unknown) {
       },
     ],
   };
+}
+
+function errorResult(error: unknown) {
+  if (error instanceof UsercallApiError && error.status === 402) {
+    return {
+      isError: true,
+      content: [
+        {
+          type: "text" as const,
+          text: JSON.stringify({
+            error: "insufficient_credits",
+            status: 402,
+            message: error.message,
+            checkout_url: error.checkoutUrl,
+          }),
+        },
+      ],
+    };
+  }
+
+  throw error;
 }
 
 function appendNote(payload: unknown, note: string) {
@@ -66,103 +147,142 @@ function appendNote(payload: unknown, note: string) {
 async function main() {
   const server = new McpServer({
     name: "usercall-mcp",
-    version: "0.1.0",
+    version: PACKAGE_VERSION,
   });
 
   server.tool(
     "create_study",
-    "Creates a user interview study and returns an interview_link to share with participants. Starts with 1 interview slot. Optionally include study_media to show an image or Figma prototype during the interview.",
+    "Creates a user interview study and returns study_id plus an interview_link to share with participants. One active agent study is allowed per personal account. Optional interview_mode: voice (default), text, or voice_and_text. Optionally include study_media to show an image or Figma prototype during the interview. On insufficient credits the API returns 402 with checkout_url.",
     {
-      key_research_goal: z.string(),
-      business_context: z.string(),
+      key_research_goal: z
+        .string()
+        .min(5)
+        .max(2000)
+        .describe("Research goal for the study. Cannot be changed later."),
+      business_context: z.string().min(5).max(2000),
       additional_context_prompt: z.string().optional(),
-      language: z.enum(["auto", "en"]).optional(),
-      duration_minutes: z.number().int().positive().optional(),
-      metadata: z.record(z.string(), z.unknown()).optional(),
-      study_media: z
-        .object({
-          type: z
-            .enum(["image", "prototype"])
-            .describe(
-              "Media type: 'image' for direct image URLs (.png, .jpg, .gif, .webp) or 'prototype' for Figma prototype URLs",
-            ),
-          url: z
-            .string()
-            .url()
-            .describe("Public URL to the image or Figma prototype"),
-          description: z
-            .string()
-            .max(500)
-            .optional()
-            .describe("Alt text / context shown to participants"),
-        })
+      target_interviews: z
+        .number()
+        .int()
+        .min(1)
+        .max(200)
         .optional()
-        .describe(
-          "Visual stimulus shown during all interview questions (web participants only)",
-        ),
+        .describe("Interview slots to create. Defaults to 1 if omitted."),
+      language: z
+        .enum(["auto", "en", "ko"])
+        .optional()
+        .describe("Interview language. Defaults to auto."),
+      duration_minutes: z
+        .number()
+        .int()
+        .min(5)
+        .max(65)
+        .optional()
+        .describe("Interview length in minutes. Defaults to 12."),
+      interview_mode: z
+        .enum(["voice", "text", "voice_and_text"])
+        .optional()
+        .describe("How participants take the interview. Defaults to voice."),
+      metadata: z.record(z.string(), z.unknown()).optional(),
+      study_media: studyMediaSchema.optional(),
+    },
+    {
+      title: "Create study",
+      readOnlyHint: false,
+      destructiveHint: false,
+      openWorldHint: true,
     },
     async (input) => {
-      const payload = await callUsercallApi("/api/v1/agent/studies", {
-        method: "POST",
-        body: JSON.stringify({ ...input, target_interviews: 1 }),
-      });
+      try {
+        const payload = await callUsercallApi("/api/v1/agent/studies", {
+          method: "POST",
+          body: JSON.stringify(input),
+        });
 
-      const note = input.study_media
-        ? "Study created with 1 interview slot and media attachment. Share the interview_link with 1 participant (media visible on web only). Use update_study to add more slots."
-        : "Study created with 1 interview slot. Share the interview_link with 1 participant. Use update_study to add more slots.";
+        const slots = input.target_interviews ?? 1;
+        const note = input.study_media
+          ? `Study created with ${slots} interview slot(s) and media attachment. Share the interview_link with participants (media visible on web only). Use update_study to change slots, guide copy, or media.`
+          : `Study created with ${slots} interview slot(s). Share the interview_link with participants. Use update_study to change slots, guide copy, or media.`;
 
-      return result(appendNote(payload, note));
+        return result(appendNote(payload, note));
+      } catch (error) {
+        return errorResult(error);
+      }
     },
   );
 
   server.tool(
     "update_study",
-    "Updates an existing study. Use this to increase interview slots, add/update media, or modify the interview guide.",
+    "Updates an existing study. Use this to change interview slots, interview mode, guide copy, questions, or media. Research goal cannot be changed. Pass study_media: null to clear media.",
     {
       study_id: z.string().uuid(),
       target_interviews: z
         .number()
         .int()
-        .positive()
+        .min(1)
+        .max(200)
         .optional()
         .describe("Total number of interview slots for this study."),
       is_link_disabled: z.boolean().optional(),
-      study_media: z
-        .object({
-          type: z
-            .enum(["image", "prototype"])
-            .describe(
-              "Media type: 'image' for direct image URLs (.png, .jpg, .gif, .webp) or 'prototype' for Figma prototype URLs",
-            ),
-          url: z.string().url().describe("Public URL to the image or Figma prototype"),
-          description: z
-            .string()
-            .max(500)
-            .optional()
-            .describe("Alt text / context shown to participants"),
-        })
+      ai_agent_intro_message: z
+        .string()
+        .optional()
+        .describe("Opening message the interviewer says to participants."),
+      key_learning_goals: z
+        .string()
+        .optional()
+        .describe("Learning goals that guide the interviewer."),
+      workflow_end_message: z
+        .string()
+        .optional()
+        .describe("Closing message shown when the interview ends."),
+      workflow_questions: z
+        .array(z.string())
+        .optional()
+        .describe("Interview questions to ask participants, in order."),
+      interview_mode: z
+        .enum(["voice", "text", "voice_and_text"])
+        .optional()
+        .describe("How participants take the interview."),
+      study_media: studyMediaSchema
+        .nullable()
         .optional()
         .describe(
-          "Visual stimulus shown during all interview questions (web participants only)",
+          "Visual stimulus shown during all interview questions (web participants only). Pass null to clear.",
         ),
     },
+    {
+      title: "Update study",
+      readOnlyHint: false,
+      destructiveHint: false,
+      openWorldHint: false,
+    },
     async (input) => {
-      const { study_id, ...body } = input;
-      const payload = await callUsercallApi(
-        `/api/v1/agent/studies/${study_id}`,
-        {
-          method: "PATCH",
-          body: JSON.stringify(body),
-        },
-      );
-      return result(payload);
+      try {
+        const { study_id, ...body } = input;
+        const payload = await callUsercallApi(
+          `/api/v1/agent/studies/${study_id}`,
+          {
+            method: "PATCH",
+            body: JSON.stringify(body),
+          },
+        );
+        return result(payload);
+      } catch (error) {
+        return errorResult(error);
+      }
     },
   );
 
   server.tool(
     "get_study_status",
+    "Returns the current lifecycle status of a study: running, analyzing, or complete. Includes progress fields such as completed_interviews and target_interviews.",
     {
       study_id: z.string().uuid(),
+    },
+    {
+      title: "Get study status",
+      readOnlyHint: true,
     },
     async (input) => {
       const payload = await callUsercallApi(
@@ -178,6 +298,10 @@ async function main() {
     {
       study_id: z.string().uuid(),
       format: z.enum(["summary", "full"]).optional(),
+    },
+    {
+      title: "Get study results",
+      readOnlyHint: true,
     },
     async (input) => {
       const format = input.format ?? "summary";
@@ -198,6 +322,11 @@ async function main() {
     "Permanently deletes a study and all associated data. Releases unused reserved credits.",
     {
       study_id: z.string().uuid(),
+    },
+    {
+      title: "Delete study",
+      readOnlyHint: false,
+      destructiveHint: true,
     },
     async (input) => {
       const payload = await callUsercallApi(
