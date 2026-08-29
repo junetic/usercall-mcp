@@ -22,13 +22,14 @@ Usercall MCP lets agents gather real qualitative feedback directly from users.
 
 ## Choose a connection
 
-### Recommended: hosted MCP (Claude, ChatGPT, Cursor)
+### Recommended: hosted MCP (Claude, ChatGPT, Cursor, Grok Bot)
 
 Add **`https://mcp.usercall.co`** as a remote MCP connector / custom connector.
 
 - OAuth sign-in (no API key, no `npx`)
 - Same five tools as this package
 - Docs: [app.usercall.co/docs/mcp](https://app.usercall.co/docs/mcp)
+- Cursor Directory / Grok Bot: this repo ships `.mcp.json` so agents can install the hosted connector from [cursor.directory](https://cursor.directory) (search **usercall**). Grok Bot cannot run the local `npx` package.
 
 ### This package: local / API-key / machine-to-machine
 
