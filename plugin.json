@@ -1,0 +1,21 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "usercall",
+  "version": "0.2.0",
+  "description": "Run real user interviews from an agent and get themes plus verbatim quotes.",
+  "author": {
+    "name": "Usercall",
+    "email": "contact@usercall.co",
+    "url": "https://www.usercall.co"
+  },
+  "homepage": "https://app.usercall.co/docs/mcp",
+  "repository": "https://github.com/junetic/usercall-mcp",
+  "license": "MIT",
+  "keywords": [
+    "user-research",
+    "interviews",
+    "feedback",
+    "qualitative",
+    "mcp"
+  ]
+}

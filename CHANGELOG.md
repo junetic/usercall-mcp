@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Package the hosted MCP for [cursor.directory](https://cursor.directory): `.mcp.json`, Agent Plugin manifests, Cursor plugin manifest, and `run-user-interviews` skill
+
 ## 0.2.0
 
 - Align create/update study tools with Agent API v1 and the hosted catalog at `https://mcp.usercall.co`

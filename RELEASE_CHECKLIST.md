@@ -24,6 +24,11 @@ Use this before creating the standalone GitHub repo or publishing.
 - [ ] `README.md` includes setup, env, tools, and troubleshooting.
 - [ ] `LICENSE` is present.
 - [ ] Package metadata in `package.json` is correct.
+- [ ] `.mcp.json`, `mcp.json`, and `plugin.json` still point at `https://mcp.usercall.co`.
+
+## Cursor Directory
+
+After this is on `main`, submit `https://github.com/junetic/usercall-mcp` at [cursor.directory/plugins/new](https://cursor.directory/plugins/new). The directory scans the default branch for `.mcp.json`.
 
 ## Repo Setup (when creating new repo)
 
