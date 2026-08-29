@@ -17,9 +17,9 @@ Use the Usercall MCP (`usercall`) to create a study, share the interview link, t
 ## Workflow
 
 1. Call `create_study` with a concrete `key_research_goal` and `business_context`.
-2. Return `interview_link` so the user can share it (email, Slack, Discord, or in-product).
-3. Poll `get_study_status` until status is `complete` (not just `analyzing`).
-4. Call `get_study_results` and present each theme with quotes from the `quotes` array. Do not paraphrase quotes.
+2. Return `interview_link` immediately so the user can share it (email, Slack, Discord, or in-product). Interviews complete asynchronously as participants finish — minutes to hours. Do not sit in a poll loop.
+3. When the user says people are done, or they ask for results, call `get_study_status`. If status is `complete`, call `get_study_results`. If it is still `running` or `analyzing`, report `completed_interviews` / `target_interviews` and wait for the user.
+4. Present each theme with quotes from the `quotes` array. Do not paraphrase quotes.
 5. Use `update_study` only to change slots, interview mode, guide copy, questions, or media. The research goal cannot change.
 6. Use `delete_study` only when the user asks to delete the study.
 

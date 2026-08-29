@@ -4,7 +4,8 @@
   "description": "Run real user interviews from an agent and get themes plus verbatim quotes.",
   "author": {
     "name": "Usercall",
-    "email": "contact@usercall.co"
+    "email": "contact@usercall.co",
+    "url": "https://www.usercall.co"
   },
   "homepage": "https://app.usercall.co/docs/mcp",
   "repository": "https://github.com/junetic/usercall-mcp",
