@@ -38,47 +38,6 @@ Use `@usercall/mcp` over stdio when you want a Bearer API key (scripts, local cl
 1. Sign in at [app.usercall.co](https://app.usercall.co) → **Home → Developer → Create API key**
 2. Run `npx -y @usercall/mcp` with `USERCALL_API_KEY`
 
-### Research Trigger tools
-
-| Tool                       | Purpose                                                                                                   |
-| -------------------------- | --------------------------------------------------------------------------------------------------------- |
-| `get_trigger_capabilities` | What triggers support and what they don't                                                                 |
-| `get_trigger_sdk_setup`    | SDK install snippet for `posthog`, `mixpanel`, `amplitude`, `segment`, `ga4` or `custom`, plus an `identify` snippet and install status |
-| `list_trigger_events`      | Events Usercall has received for your account in the last 30 days                                         |
-| `get_trigger_event_schema` | Observed properties vs traits for one event, with types and sample values                                 |
-| `list_studies`             | Studies in your account that a trigger can use                                                            |
-| `create_research_trigger`  | Create a **paused** trigger; returns `trigger_id`, `summary`, `activation_url`, `warnings`                |
-| `list_research_triggers`   | All triggers with status and summary                                                                      |
-| `get_research_trigger`     | One trigger with invite/interview counts                                                                  |
-| `update_research_trigger`  | Change targeting, sampling, cooldown, daily cap or intercept copy; `status: "paused"` pauses              |
-| `delete_research_trigger`  | Delete a trigger                                                                                          |
-
-#### `create_research_trigger`
-
-| Field                 | Type                                                 | Required | Default |
-| --------------------- | ---------------------------------------------------- | -------- | ------- |
-| `study_id`            | uuid string                                          | yes      |         |
-| `event_name`          | string (from `list_trigger_events`)                  | yes      |         |
-| `properties`          | object of exact-match values                         | no       |         |
-| `traits`              | object of exact-match values                         | no       |         |
-| `url`                 | `{ match: equals \| contains \| starts_with, value }` | no       |         |
-| `dwell_seconds`       | 1–600 (page-visit triggers only)                     | no       |         |
-| `source`              | `page_visit` \| `analytics_event` \| `custom`        | no       |         |
-| `sampling_percent`    | 1–100                                                | no       | 100     |
-| `cooldown_days`       | 0–365                                                | no       | 30      |
-| `max_invites_per_day` | 1–100                                                | no       | 100     |
-| `intercept_title`     | string (≤120), small label above the prompt          | no       | default |
-| `intercept_body`      | string (≤500), prompt text                           | no       | default |
-| `name`                | string (≤100)                                        | no       | generated |
-
-For page-visit triggers, use `source: "page_visit"` and `event_name: "$pageview"`, with `url` and optionally `dwell_seconds`.
-
-### Safety
-
-- **Agents cannot activate triggers.** Triggers are always created **paused**. Calling `update_research_trigger` with `status: "active"` returns HTTP 409 and the `activation_url`. A person has to open that link, review who will be invited, what they will see and the credit cost, and click **Activate**.
-- **Changes to an active trigger need re-approval.** Changing an active trigger's configuration pauses it again.
-- **Secret keys are never returned.** The ingestion secret key never comes back from any tool.
-
 ---
 
 ## Example workflow
@@ -359,6 +318,47 @@ Permanently deletes a study and all associated data (recordings, transcripts). R
 | Field      | Type        | Required |
 | ---------- | ----------- | -------- |
 | `study_id` | uuid string | yes      |
+
+### Research Trigger tools
+
+| Tool                       | Purpose                                                                                                   |
+| -------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `get_trigger_capabilities` | What triggers support and what they don't                                                                 |
+| `get_trigger_sdk_setup`    | SDK install snippet for `posthog`, `mixpanel`, `amplitude`, `segment`, `ga4` or `custom`, plus an `identify` snippet and install status |
+| `list_trigger_events`      | Events Usercall has received for your account in the last 30 days                                         |
+| `get_trigger_event_schema` | Observed properties vs traits for one event, with types and sample values                                 |
+| `list_studies`             | Studies in your account that a trigger can use                                                            |
+| `create_research_trigger`  | Create a **paused** trigger; returns `trigger_id`, `summary`, `activation_url`, `warnings`                |
+| `list_research_triggers`   | All triggers with status and summary                                                                      |
+| `get_research_trigger`     | One trigger with invite/interview counts                                                                  |
+| `update_research_trigger`  | Change targeting, sampling, cooldown, daily cap or intercept copy; `status: "paused"` pauses              |
+| `delete_research_trigger`  | Delete a trigger                                                                                          |
+
+#### `create_research_trigger`
+
+| Field                 | Type                                                 | Required | Default |
+| --------------------- | ---------------------------------------------------- | -------- | ------- |
+| `study_id`            | uuid string                                          | yes      |         |
+| `event_name`          | string (from `list_trigger_events`)                  | yes      |         |
+| `properties`          | object of exact-match values                         | no       |         |
+| `traits`              | object of exact-match values                         | no       |         |
+| `url`                 | `{ match: equals \| contains \| starts_with, value }` | no       |         |
+| `dwell_seconds`       | 1–600 (page-visit triggers only)                     | no       |         |
+| `source`              | `page_visit` \| `analytics_event` \| `custom`        | no       |         |
+| `sampling_percent`    | 1–100                                                | no       | 100     |
+| `cooldown_days`       | 0–365                                                | no       | 30      |
+| `max_invites_per_day` | 1–100                                                | no       | 100     |
+| `intercept_title`     | string (≤120), small label above the prompt          | no       | default |
+| `intercept_body`      | string (≤500), prompt text                           | no       | default |
+| `name`                | string (≤100)                                        | no       | generated |
+
+For page-visit triggers, use `source: "page_visit"` and `event_name: "$pageview"`, with `url` and optionally `dwell_seconds`.
+
+### Safety
+
+- **Agents cannot activate triggers.** Triggers are always created **paused**. Calling `update_research_trigger` with `status: "active"` returns HTTP 409 and the `activation_url`. A person has to open that link, review who will be invited, what they will see and the credit cost, and click **Activate**.
+- **Changes to an active trigger need re-approval.** Changing an active trigger's configuration pauses it again.
+- **Secret keys are never returned.** The ingestion secret key never comes back from any tool.
 
 ---
 
