@@ -3,7 +3,7 @@
 ## Unreleased
 
 - `create_research_trigger` / `update_research_trigger`: choose `delivery_method` (`intercept` or `webhook`) with `webhook_url` and a write-only `webhook_secret`
-- `list_studies` returns each study's `interview_mode` (what the in-app widget offers)
+- `list_studies` documents each study's `interview_mode` (what the in-app widget offers), returned by the Agent API
 
 ## 0.3.0
 

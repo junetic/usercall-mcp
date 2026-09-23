@@ -331,7 +331,7 @@ Permanently deletes a study and all associated data (recordings, transcripts). R
 | `create_research_trigger`  | Create a **paused** trigger; returns `trigger_id`, `summary`, `activation_url`, `warnings`                |
 | `list_research_triggers`   | All triggers with status and summary                                                                      |
 | `get_research_trigger`     | One trigger with invite/interview counts                                                                  |
-| `update_research_trigger`  | Change targeting, sampling, cooldown, daily cap or intercept copy; `status: "paused"` pauses              |
+| `update_research_trigger`  | Change targeting, sampling, cooldown, daily cap, intercept copy or delivery; `status: "paused"` pauses |
 | `delete_research_trigger`  | Delete a trigger                                                                                          |
 
 #### `create_research_trigger`

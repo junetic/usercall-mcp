@@ -126,7 +126,7 @@ const configShape = {
     .max(500)
     .optional()
     .describe(
-      "Public https endpoint for delivery_method webhook. Receives user ID, email, traits, event properties and a personal interview link.",
+      'Public https endpoint for delivery_method webhook. Receives user ID, email, traits, event properties and a personal interview link. To remove a webhook, set delivery_method "intercept" (clears webhook_url and webhook_secret).',
     ),
   webhook_secret: z
     .string()
@@ -183,7 +183,13 @@ export const TRIGGER_TOOL_INPUT_SCHEMAS = {
       url: urlRule.nullable().optional(),
       dwell_seconds: z.number().int().min(1).max(600).nullable().optional(),
       source: sourceKind.nullable().optional(),
-      webhook_secret: z.string().min(16).max(200).nullable().optional(),
+      webhook_secret: configShape.webhook_secret
+        .unwrap()
+        .nullable()
+        .optional()
+        .describe(
+          "Optional HMAC secret; requests carry x-usercall-signature. Write-only: never returned. null removes it.",
+        ),
       status: z
         .enum(["active", "paused"])
         .optional()

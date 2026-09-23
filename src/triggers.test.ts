@@ -155,6 +155,50 @@ test("unknown conditions are forwarded to the API and its error reaches the agen
   assert.match(result.content[0]?.text ?? "", /Unsupported trigger condition: count/);
 });
 
+test("delivery fields are forwarded on create and update; webhook_secret: null is allowed", async () => {
+  const bodies: unknown[] = [];
+  const client = await connect(async (request) => {
+    bodies.push(request.body);
+    return { status: 200, data: {} };
+  });
+
+  const created = (await client.callTool({
+    name: "create_research_trigger",
+    arguments: {
+      study_id: TRIGGER_ID,
+      event_name: "study_tested",
+      delivery_method: "webhook",
+      webhook_url: "https://hooks.example.com/usercall",
+      webhook_secret: "whsec_0123456789abcdef",
+    },
+  })) as { isError?: boolean };
+  assert.equal(created.isError, false);
+
+  const updated = (await client.callTool({
+    name: "update_research_trigger",
+    arguments: { trigger_id: TRIGGER_ID, webhook_secret: null },
+  })) as { isError?: boolean };
+  assert.equal(updated.isError, false);
+
+  const toIntercept = (await client.callTool({
+    name: "update_research_trigger",
+    arguments: { trigger_id: TRIGGER_ID, delivery_method: "intercept" },
+  })) as { isError?: boolean };
+  assert.equal(toIntercept.isError, false);
+
+  assert.deepEqual(bodies, [
+    {
+      study_id: TRIGGER_ID,
+      event_name: "study_tested",
+      delivery_method: "webhook",
+      webhook_url: "https://hooks.example.com/usercall",
+      webhook_secret: "whsec_0123456789abcdef",
+    },
+    { webhook_secret: null },
+    { delivery_method: "intercept" },
+  ]);
+});
+
 test("activation attempts return the 409 activation_url", async () => {
   const client = await connect(async () => ({
     status: 409,
