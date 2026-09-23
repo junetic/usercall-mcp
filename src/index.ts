@@ -3,7 +3,9 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 
-const PACKAGE_VERSION = "0.2.0";
+import { createFetchTriggerApiCaller, registerTriggerTools } from "./triggers.js";
+
+const PACKAGE_VERSION = "0.3.0";
 const apiKey = process.env.USERCALL_API_KEY;
 const baseUrl = process.env.USERCALL_BASE_URL ?? "https://app.usercall.co";
 
@@ -340,6 +342,11 @@ async function main() {
         ),
       );
     },
+  );
+
+  registerTriggerTools(
+    server,
+    createFetchTriggerApiCaller({ baseUrl, apiKey: apiKey as string }),
   );
 
   const transport = new StdioServerTransport();

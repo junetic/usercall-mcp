@@ -17,7 +17,10 @@ Use this before creating the standalone GitHub repo or publishing.
 
 - [ ] `pnpm typecheck` passes.
 - [ ] `pnpm build` passes.
+- [ ] `pnpm test` passes.
+- [ ] `fixtures/tool-manifest.json` is refreshed from the main app (`pnpm --filter web mcp:manifest`, then copy `apps/web/app/api/mcp/_lib/tool-manifest.json`).
 - [ ] `pnpm smoke` succeeds against target base URL.
+- [ ] `pnpm smoke:triggers` succeeds (with `SMOKE_STUDY_ID` and `SMOKE_EVENT_NAME`).
 
 ## Docs + Metadata
 
@@ -33,5 +36,5 @@ After this is on `main`, submit `https://github.com/junetic/usercall-mcp` at [cu
 ## Repo Setup (when creating new repo)
 
 - [ ] Initialize new repo from `usercall-mcp/` contents only.
-- [ ] Add CI for typecheck/build/smoke.
+- [x] Add CI for typecheck/test/build (`.github/workflows/ci.yml`).
 - [ ] Tag initial release (`v0.1.0` or chosen version).

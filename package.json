@@ -1,6 +1,6 @@
 {
   "name": "@usercall/mcp",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": false,
   "description": "Usercall MCP server for Agent API v1",
   "license": "MIT",
@@ -20,7 +20,9 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "dev": "tsx src/index.ts",
     "start": "node dist/index.js",
-    "smoke": "tsx scripts/smoke.ts"
+    "smoke": "tsx scripts/smoke.ts",
+    "smoke:triggers": "tsx scripts/smoke-triggers.ts",
+    "test": "node --import tsx --test \"src/**/*.test.ts\""
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.17.5",
