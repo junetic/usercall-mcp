@@ -8,6 +8,7 @@
 - Triggers are always created paused; agents cannot activate (HTTP 409 with `activation_url`)
 - Trigger create/update forward unknown conditions to the API, which rejects them with an explanation, instead of silently dropping them
 - Add `pnpm test` (tool parity with the hosted MCP via `fixtures/tool-manifest.json`, request mapping, error passthrough), `pnpm smoke:triggers`, and CI
+- `run-user-interviews` skill covers the Research Trigger workflow and the "agents cannot activate" rule
 - Package the hosted MCP for [cursor.directory](https://cursor.directory): `.mcp.json`, Agent Plugin manifests, Cursor plugin manifest, and `run-user-interviews` skill
 
 ## 0.2.0

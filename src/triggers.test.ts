@@ -6,12 +6,14 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
+import { createUsercallServer } from "./server.js";
 import {
   TRIGGER_TOOL_CATALOG,
   TRIGGER_TOOL_INPUT_SCHEMAS,
   buildTriggerToolRequest,
   createFetchTriggerApiCaller,
   registerTriggerTools,
+  toToolResult,
   type TriggerApiCaller,
 } from "./triggers.js";
 
@@ -175,4 +177,81 @@ test("tools/list exposes all ten trigger tools", async () => {
   const client = await connect(async () => ({ status: 200, data: {} }));
   const { tools } = await client.listTools();
   assert.equal(tools.length, 10);
+});
+
+test("create forwards status=active so the API (not this layer) rejects it", async () => {
+  let forwarded: unknown;
+  const client = await connect(async (request) => {
+    forwarded = request.body;
+    return {
+      status: 422,
+      data: { error: "invalid_trigger", message: "Unsupported trigger condition: status." },
+    };
+  });
+
+  const result = (await client.callTool({
+    name: "create_research_trigger",
+    arguments: { study_id: TRIGGER_ID, event_name: "study_tested", status: "active" },
+  })) as { isError?: boolean; content: Array<{ text: string }> };
+
+  assert.deepEqual(forwarded, {
+    study_id: TRIGGER_ID,
+    event_name: "study_tested",
+    status: "active",
+  });
+  assert.equal(result.isError, true);
+  assert.match(result.content[0]?.text ?? "", /Unsupported trigger condition: status/);
+});
+
+test("fixed-path tools map to the Agent API", () => {
+  assert.deepEqual(buildTriggerToolRequest("get_trigger_capabilities", {}), {
+    method: "GET",
+    path: "/api/v1/agent/triggers/capabilities",
+  });
+  assert.deepEqual(buildTriggerToolRequest("list_trigger_events", {}), {
+    method: "GET",
+    path: "/api/v1/agent/triggers/events",
+  });
+  assert.deepEqual(buildTriggerToolRequest("list_studies", {}), {
+    method: "GET",
+    path: "/api/v1/agent/studies",
+  });
+  assert.deepEqual(buildTriggerToolRequest("list_research_triggers", {}), {
+    method: "GET",
+    path: "/api/v1/agent/triggers",
+  });
+  assert.deepEqual(buildTriggerToolRequest("get_research_trigger", { trigger_id: TRIGGER_ID }), {
+    method: "GET",
+    path: `/api/v1/agent/triggers/${TRIGGER_ID}`,
+  });
+  const body = { study_id: TRIGGER_ID, event_name: "study_tested", traits: { plan: "free" } };
+  assert.deepEqual(buildTriggerToolRequest("create_research_trigger", body), {
+    method: "POST",
+    path: "/api/v1/agent/triggers",
+    body,
+  });
+});
+
+test("http_status from the transport cannot be overwritten by the API body", () => {
+  const result = toToolResult({ status: 422, data: { http_status: 200, error: "x" } });
+  assert.equal(JSON.parse(result.content[0]?.text ?? "{}").http_status, 422);
+  assert.equal(result.isError, true);
+});
+
+test("the stdio server registers every study and trigger tool", async () => {
+  const server = createUsercallServer({
+    apiKey: "key_123",
+    baseUrl: "https://app.usercall.test",
+    fetchImpl: async () => new Response("{}"),
+  });
+  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+  await server.connect(serverTransport);
+  const client = new Client({ name: "test-client", version: "0.0.0" });
+  await client.connect(clientTransport);
+
+  const { tools } = await client.listTools();
+  assert.deepEqual(
+    tools.map((tool) => tool.name).sort(),
+    manifest.tools.map((tool) => tool.name).sort(),
+  );
 });

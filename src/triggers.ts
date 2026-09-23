@@ -224,6 +224,8 @@ export const TRIGGER_TOOL_CATALOG: TriggerToolMeta[] = [
       "Observed fields for one event, split into event properties and user traits, with value types and sample values. Use it to put filters under the right key (properties vs traits) with exact values; matching is case- and type-sensitive.",
     annotations: readOnly,
   },
+  // list_studies lives here (not with the study tools in server.ts) because it
+  // exists to pick a study for a trigger, matching the hosted MCP catalog.
   {
     name: "list_studies",
     title: "List Studies",
@@ -314,7 +316,7 @@ export function buildTriggerToolRequest(
 export function toToolResult(response: TriggerApiResponse) {
   const payload =
     response.data && typeof response.data === "object" && !Array.isArray(response.data)
-      ? { http_status: response.status, ...(response.data as Record<string, unknown>) }
+      ? { ...(response.data as Record<string, unknown>), http_status: response.status }
       : { http_status: response.status, data: response.data };
 
   return {

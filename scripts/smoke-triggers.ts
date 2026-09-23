@@ -54,6 +54,21 @@ const unsupported = await call('POST', '/api/v1/agent/triggers', {
 });
 expectStatus(unsupported.status, 422, 'unsupported condition');
 
+// An agent must never be able to create an active trigger.
+const activeOnCreate = await call('POST', '/api/v1/agent/triggers', {
+  study_id: studyId,
+  event_name: eventName,
+  status: 'active',
+});
+if (activeOnCreate.status < 400) {
+  if (activeOnCreate.data?.trigger_id) {
+    await call('DELETE', `/api/v1/agent/triggers/${activeOnCreate.data.trigger_id}`);
+  }
+  if (activeOnCreate.data?.status !== 'paused') {
+    throw new Error('status=active on create produced a non-paused trigger');
+  }
+}
+
 const created = await call('POST', '/api/v1/agent/triggers', { study_id: studyId, event_name: eventName });
 expectStatus(created.status, 201, 'create');
 if (created.data.status !== 'paused') throw new Error('Trigger was not created paused');
