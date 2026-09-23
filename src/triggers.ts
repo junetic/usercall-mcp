@@ -113,6 +113,29 @@ const configShape = {
     .max(500)
     .optional()
     .describe("Prompt text shown to the user."),
+  delivery_method: z
+    .enum(["intercept", "webhook"])
+    .optional()
+    .describe(
+      'intercept (default): in-app voice/text widget via the Usercall SDK. webhook: POST each matched user to webhook_url.',
+    ),
+  webhook_url: z
+    .string()
+    .trim()
+    .url()
+    .max(500)
+    .optional()
+    .describe(
+      "Public https endpoint for delivery_method webhook. Receives user ID, email, traits, event properties and a personal interview link.",
+    ),
+  webhook_secret: z
+    .string()
+    .min(16)
+    .max(200)
+    .optional()
+    .describe(
+      "Optional HMAC secret; requests carry x-usercall-signature. Write-only: never returned.",
+    ),
 };
 
 const triggerIdShape = { trigger_id: z.string().uuid() };
@@ -160,6 +183,7 @@ export const TRIGGER_TOOL_INPUT_SCHEMAS = {
       url: urlRule.nullable().optional(),
       dwell_seconds: z.number().int().min(1).max(600).nullable().optional(),
       source: sourceKind.nullable().optional(),
+      webhook_secret: z.string().min(16).max(200).nullable().optional(),
       status: z
         .enum(["active", "paused"])
         .optional()
@@ -230,13 +254,13 @@ export const TRIGGER_TOOL_CATALOG: TriggerToolMeta[] = [
     name: "list_studies",
     title: "List Studies",
     description:
-      "Interview studies in this account (id, title, trigger_eligible) so a Research Trigger can reuse an existing study. Use create_study to make a new one.",
+      "Interview studies in this account (id, title, trigger_eligible, interview_mode: voice | text | voice_and_text as offered by the in-app widget) so a Research Trigger can reuse an existing study. Use create_study to make a new one.",
     annotations: readOnly,
   },
   {
     name: "create_research_trigger",
     title: "Create Research Trigger",
-    description: `Create a Research Trigger that invites users to a study interview when an observed event occurs, optionally filtered by exact-match properties/traits, URL, or page dwell. Unsupported conditions are rejected, not dropped. ${PAUSED_NOTE}`,
+    description: `Create a Research Trigger that invites users to a study interview when an observed event occurs, optionally filtered by exact-match properties/traits, URL, or page dwell. delivery_method: "intercept" (default, in-app voice/text widget via the SDK) or "webhook" (POST each matched user, incl. identity and traits, to a public https webhook_url). Unsupported conditions are rejected, not dropped. ${PAUSED_NOTE}`,
     annotations: write,
   },
   {
@@ -256,7 +280,7 @@ export const TRIGGER_TOOL_CATALOG: TriggerToolMeta[] = [
   {
     name: "update_research_trigger",
     title: "Update Research Trigger",
-    description: `Update targeting, sampling, cooldown, daily cap or intercept copy, or pause a trigger (status="paused"). Agents cannot activate: status="active" returns activation_url for the user. Changing an active trigger pauses it for re-approval. ${PAUSED_NOTE}`,
+    description: `Update targeting, sampling, cooldown, daily cap, intercept copy or delivery (intercept/webhook), or pause a trigger (status="paused"). Agents cannot activate: status="active" returns activation_url for the user. Changing an active trigger pauses it for re-approval. ${PAUSED_NOTE}`,
     annotations: write,
   },
   {

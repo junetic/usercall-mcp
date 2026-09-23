@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- `create_research_trigger` / `update_research_trigger`: choose `delivery_method` (`intercept` or `webhook`) with `webhook_url` and a write-only `webhook_secret`
+- `list_studies` returns each study's `interview_mode` (what the in-app widget offers)
+
 ## 0.3.0
 
 - Add Research Trigger tools: `get_trigger_capabilities`, `get_trigger_sdk_setup`, `list_trigger_events`, `get_trigger_event_schema`, `list_studies`, `create_research_trigger`, `list_research_triggers`, `get_research_trigger`, `update_research_trigger`, `delete_research_trigger`
