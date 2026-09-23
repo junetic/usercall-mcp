@@ -39,7 +39,7 @@ Use when analytics (for example a PostHog or Mixpanel MCP) shows a behavior wort
 2. Call `list_trigger_events`. If the event is missing, or nothing is listed, call `get_trigger_sdk_setup(provider, events=[...])`. If you can edit the codebase, apply `install_snippet` (or `allowlist_update_snippet`) and `identify_snippet`; otherwise show them to the user. Then check `list_trigger_events` again.
 3. Call `get_trigger_event_schema(event_name)`. Put each filter under `properties` or `traits` as returned, using exact observed values (matching is case- and type-sensitive).
 4. Pick a study with `list_studies`, or make one with `create_study`.
-5. Call `create_research_trigger`. It is always created **paused**. Read `warnings`, and fix the request instead of retrying blindly if it returns an error.
+5. Call `create_research_trigger`. It is always created **paused**. Delivery defaults to `intercept`: the in-app widget, with a voice or text interview depending on the study's `interview_mode` from `list_studies`. Use `delivery_method: "webhook"` with a public https `webhook_url` only when the user wants matches sent to their own system, and tell them that each matched user's identity and traits will be sent there. Read `warnings`, and fix the request instead of retrying blindly if it returns an error.
 6. Show the user the `summary` and the `activation_url`. Only the user can activate the trigger, from that page.
 7. Later, use `get_research_trigger` for invite/interview counts and `get_study_results` for findings.
 

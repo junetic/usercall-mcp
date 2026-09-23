@@ -9,6 +9,7 @@
       },
       "input_keys": [
         "cooldown_days",
+        "delivery_method",
         "dwell_seconds",
         "event_name",
         "intercept_body",
@@ -20,7 +21,9 @@
         "source",
         "study_id",
         "traits",
-        "url"
+        "url",
+        "webhook_secret",
+        "webhook_url"
       ],
       "required": [
         "event_name",
@@ -197,6 +200,7 @@
       },
       "input_keys": [
         "cooldown_days",
+        "delivery_method",
         "dwell_seconds",
         "event_name",
         "intercept_body",
@@ -209,7 +213,9 @@
         "status",
         "traits",
         "trigger_id",
-        "url"
+        "url",
+        "webhook_secret",
+        "webhook_url"
       ],
       "required": [
         "trigger_id"

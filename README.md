@@ -331,7 +331,7 @@ Permanently deletes a study and all associated data (recordings, transcripts). R
 | `create_research_trigger`  | Create a **paused** trigger; returns `trigger_id`, `summary`, `activation_url`, `warnings`                |
 | `list_research_triggers`   | All triggers with status and summary                                                                      |
 | `get_research_trigger`     | One trigger with invite/interview counts                                                                  |
-| `update_research_trigger`  | Change targeting, sampling, cooldown, daily cap or intercept copy; `status: "paused"` pauses              |
+| `update_research_trigger`  | Change targeting, sampling, cooldown, daily cap, intercept copy or delivery; `status: "paused"` pauses |
 | `delete_research_trigger`  | Delete a trigger                                                                                          |
 
 #### `create_research_trigger`
@@ -350,9 +350,18 @@ Permanently deletes a study and all associated data (recordings, transcripts). R
 | `max_invites_per_day` | 1–100                                                | no       | 100     |
 | `intercept_title`     | string (≤120), small label above the prompt          | no       | default |
 | `intercept_body`      | string (≤500), prompt text                           | no       | default |
+| `delivery_method`     | `intercept` \| `webhook`                              | no       | intercept |
+| `webhook_url`         | public https URL (required for `webhook`)            | no       |         |
+| `webhook_secret`      | string (16–200), HMAC key, write-only                | no       |         |
 | `name`                | string (≤100)                                        | no       | generated |
 
 For page-visit triggers, use `source: "page_visit"` and `event_name: "$pageview"`, with `url` and optionally `dwell_seconds`.
+
+**Delivery.**
+
+- `intercept` (default) shows the Usercall widget in your product, and the user takes a voice or text interview in the page. The modes come from the study; `list_studies` returns each study's `interview_mode`.
+- `webhook` POSTs each matched user to `webhook_url`, with their user ID, email if known, traits, event properties and a personal interview link. If `webhook_secret` is set, requests carry an `x-usercall-signature` HMAC header.
+- Only public `https` URLs are accepted, and the activation page shows the destination before a person activates the trigger.
 
 ### Safety
 
@@ -440,6 +449,7 @@ USERCALL_API_KEY="your_key_here" SMOKE_STUDY_ID="<uuid>" SMOKE_EVENT_NAME="<obse
 | `event_not_observed`       | Usercall hasn't received the event. Add it to your SDK allowlist (`get_trigger_sdk_setup(events=[...])`), trigger it in your app, then retry |
 | `wrong_placement`          | The field is a trait, not a property (or the reverse). Use the suggested fix in the error |
 | Trait filters never match  | Call `window.usercall.identify({ userId, traits })` when the user is known (see `identify_snippet`) |
+| `webhook_url_not_allowed`  | Use a public `https` URL, without credentials; localhost and private IPs are rejected |
 | `409 activation_required`  | Expected: agents can't activate. Share `activation_url` with the user |
 | Active trigger never fires | Check the event is still arriving (`list_trigger_events`), and check the values match exactly (case and type) |
 
