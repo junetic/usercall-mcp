@@ -358,6 +358,7 @@ Permanently deletes a study and all associated data (recordings, transcripts). R
 For page-visit triggers, use `source: "page_visit"` and `event_name: "$pageview"`, with `url` and optionally `dwell_seconds`.
 
 **Delivery.**
+<video src="https://cdn.prod.website-files.com/6618643d6ba0d1d33accb3c7%2F6a7c11832f031c59f7b39be0_homepage4-sm_mp4.mp4" autoplay loop muted playsinline></video>
 
 - `intercept` (default) shows the Usercall widget in your product, and the user takes a voice or text interview in the page. The modes come from the study; `list_studies` returns each study's `interview_mode`.
 - `webhook` POSTs each matched user to `webhook_url`, with their user ID, email if known, traits, event properties and a personal interview link. If `webhook_secret` is set, requests carry an `x-usercall-signature` HMAC header.
