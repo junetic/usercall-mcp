@@ -1,0 +1,241 @@
+{
+  "tools": [
+    {
+      "name": "create_research_trigger",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "input_keys": [
+        "cooldown_days",
+        "dwell_seconds",
+        "event_name",
+        "intercept_body",
+        "intercept_title",
+        "max_invites_per_day",
+        "name",
+        "properties",
+        "sampling_percent",
+        "source",
+        "study_id",
+        "traits",
+        "url"
+      ],
+      "required": [
+        "event_name",
+        "study_id"
+      ]
+    },
+    {
+      "name": "create_study",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": true
+      },
+      "input_keys": [
+        "additional_context_prompt",
+        "business_context",
+        "duration_minutes",
+        "interview_mode",
+        "key_research_goal",
+        "language",
+        "metadata",
+        "study_media",
+        "target_interviews"
+      ],
+      "required": [
+        "business_context",
+        "key_research_goal"
+      ]
+    },
+    {
+      "name": "delete_research_trigger",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "openWorldHint": false
+      },
+      "input_keys": [
+        "trigger_id"
+      ],
+      "required": [
+        "trigger_id"
+      ]
+    },
+    {
+      "name": "delete_study",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "openWorldHint": false
+      },
+      "input_keys": [
+        "study_id"
+      ],
+      "required": [
+        "study_id"
+      ]
+    },
+    {
+      "name": "get_research_trigger",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "input_keys": [
+        "trigger_id"
+      ],
+      "required": [
+        "trigger_id"
+      ]
+    },
+    {
+      "name": "get_study_results",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "input_keys": [
+        "format",
+        "study_id"
+      ],
+      "required": [
+        "study_id"
+      ]
+    },
+    {
+      "name": "get_study_status",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "input_keys": [
+        "study_id"
+      ],
+      "required": [
+        "study_id"
+      ]
+    },
+    {
+      "name": "get_trigger_capabilities",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "input_keys": [],
+      "required": []
+    },
+    {
+      "name": "get_trigger_event_schema",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "input_keys": [
+        "event_name"
+      ],
+      "required": [
+        "event_name"
+      ]
+    },
+    {
+      "name": "get_trigger_sdk_setup",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "input_keys": [
+        "events",
+        "provider"
+      ],
+      "required": []
+    },
+    {
+      "name": "list_research_triggers",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "input_keys": [],
+      "required": []
+    },
+    {
+      "name": "list_studies",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "input_keys": [],
+      "required": []
+    },
+    {
+      "name": "list_trigger_events",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "input_keys": [],
+      "required": []
+    },
+    {
+      "name": "update_research_trigger",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "input_keys": [
+        "cooldown_days",
+        "dwell_seconds",
+        "event_name",
+        "intercept_body",
+        "intercept_title",
+        "max_invites_per_day",
+        "name",
+        "properties",
+        "sampling_percent",
+        "source",
+        "status",
+        "traits",
+        "trigger_id",
+        "url"
+      ],
+      "required": [
+        "trigger_id"
+      ]
+    },
+    {
+      "name": "update_study",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "input_keys": [
+        "ai_agent_intro_message",
+        "interview_mode",
+        "is_link_disabled",
+        "key_learning_goals",
+        "study_id",
+        "study_media",
+        "target_interviews",
+        "workflow_end_message",
+        "workflow_questions"
+      ],
+      "required": [
+        "study_id"
+      ]
+    }
+  ]
+}

@@ -27,7 +27,7 @@ Usercall MCP lets agents gather real qualitative feedback directly from users.
 Add **`https://mcp.usercall.co`** as a remote MCP connector / custom connector.
 
 - OAuth sign-in (no API key, no `npx`)
-- Same five tools as this package
+- Same tools as this package (studies + Research Triggers)
 - Docs: [app.usercall.co/docs/mcp](https://app.usercall.co/docs/mcp)
 - Cursor Directory / Grok Bot: this repo ships `.mcp.json` so [cursor.directory](https://cursor.directory) can install the hosted connector. Grok Bot cannot run the local `npx` package.
 
@@ -93,6 +93,52 @@ Real user interviews
 ↓
 
 Themes and verbatim quotes returned to the agent
+
+With **Research Triggers**, the agent can also target users in your product:
+
+Analytics MCP (PostHog, Mixpanel, …) finds a behavior
+
+↓
+
+Usercall MCP creates a study and a **paused** Research Trigger
+
+↓
+
+You activate it in Usercall
+
+↓
+
+The Usercall SDK invites matching users to an interview right after the behavior
+
+---
+
+## Research Triggers
+
+Analytics tells an agent *what* users do. Research Triggers let it ask them *why*.
+
+```
+User:  "Look at our PostHog data and find something worth investigating."
+
+Agent (PostHog MCP):  users who test a study rarely launch one.
+
+Agent (Usercall MCP):
+  list_trigger_events()                  → study_tested, study_launched, …
+  get_trigger_event_schema("study_tested")
+                                         → properties: source, interview_type
+                                           traits: plan ("free", "pro"), account_type
+  create_study(...)  or  list_studies()
+  create_research_trigger({
+    study_id, event_name: "study_tested",
+    traits: { plan: "free" }, sampling_percent: 25, max_invites_per_day: 10
+  })                                     → status: "paused", summary, activation_url
+
+Agent: "I've prepared a Research Trigger. When: study_tested · Audience: plan = free ·
+        25% sampled · max 10 invites/day. It's paused — activate it here: <activation_url>"
+```
+
+- **The Usercall SDK has to be installed.** If `list_trigger_events` returns nothing, call `get_trigger_sdk_setup` (with your analytics provider and event names) to get the snippet. Coding agents can install it for you.
+- **Only events Usercall has actually received can be used.** Filters are exact matches on event **properties** or user **traits**. `get_trigger_event_schema` shows which field is which.
+- **Unsupported conditions are rejected, not silently dropped.** These include event counts, sequences, absence ("did not do X"), time windows, and not-equals. `get_trigger_capabilities` returns the full list.
 
 ---
 
@@ -273,6 +319,47 @@ Permanently deletes a study and all associated data (recordings, transcripts). R
 | ---------- | ----------- | -------- |
 | `study_id` | uuid string | yes      |
 
+### Research Trigger tools
+
+| Tool                       | Purpose                                                                                                   |
+| -------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `get_trigger_capabilities` | What triggers support and what they don't                                                                 |
+| `get_trigger_sdk_setup`    | SDK install snippet for `posthog`, `mixpanel`, `amplitude`, `segment`, `ga4` or `custom`, plus an `identify` snippet and install status |
+| `list_trigger_events`      | Events Usercall has received for your account in the last 30 days                                         |
+| `get_trigger_event_schema` | Observed properties vs traits for one event, with types and sample values                                 |
+| `list_studies`             | Studies in your account that a trigger can use                                                            |
+| `create_research_trigger`  | Create a **paused** trigger; returns `trigger_id`, `summary`, `activation_url`, `warnings`                |
+| `list_research_triggers`   | All triggers with status and summary                                                                      |
+| `get_research_trigger`     | One trigger with invite/interview counts                                                                  |
+| `update_research_trigger`  | Change targeting, sampling, cooldown, daily cap or intercept copy; `status: "paused"` pauses              |
+| `delete_research_trigger`  | Delete a trigger                                                                                          |
+
+#### `create_research_trigger`
+
+| Field                 | Type                                                 | Required | Default |
+| --------------------- | ---------------------------------------------------- | -------- | ------- |
+| `study_id`            | uuid string                                          | yes      |         |
+| `event_name`          | string (from `list_trigger_events`)                  | yes      |         |
+| `properties`          | object of exact-match values                         | no       |         |
+| `traits`              | object of exact-match values                         | no       |         |
+| `url`                 | `{ match: equals \| contains \| starts_with, value }` | no       |         |
+| `dwell_seconds`       | 1–600 (page-visit triggers only)                     | no       |         |
+| `source`              | `page_visit` \| `analytics_event` \| `custom`        | no       |         |
+| `sampling_percent`    | 1–100                                                | no       | 100     |
+| `cooldown_days`       | 0–365                                                | no       | 30      |
+| `max_invites_per_day` | 1–100                                                | no       | 100     |
+| `intercept_title`     | string (≤120), small label above the prompt          | no       | default |
+| `intercept_body`      | string (≤500), prompt text                           | no       | default |
+| `name`                | string (≤100)                                        | no       | generated |
+
+For page-visit triggers, use `source: "page_visit"` and `event_name: "$pageview"`, with `url` and optionally `dwell_seconds`.
+
+### Safety
+
+- **Agents cannot activate triggers.** Triggers are always created **paused**. Calling `update_research_trigger` with `status: "active"` returns HTTP 409 and the `activation_url`. A person has to open that link, review who will be invited, what they will see and the credit cost, and click **Activate**.
+- **Changes to an active trigger need re-approval.** Changing an active trigger's configuration pauses it again.
+- **Secret keys are never returned.** The ingestion secret key never comes back from any tool.
+
 ---
 
 ## Example workflow
@@ -332,10 +419,12 @@ pnpm build
 USERCALL_API_KEY="your_key_here" pnpm start
 ```
 
-Smoke test:
+Tests and smoke tests:
 
 ```bash
-USERCALL_API_KEY="your_key_here" pnpm smoke
+pnpm test                                   # unit + MCP contract tests
+USERCALL_API_KEY="your_key_here" pnpm smoke # creates a real study
+USERCALL_API_KEY="your_key_here" SMOKE_STUDY_ID="<uuid>" SMOKE_EVENT_NAME="<observed event>" pnpm smoke:triggers
 ```
 
 ---
@@ -348,6 +437,11 @@ USERCALL_API_KEY="your_key_here" pnpm smoke
 | `401 Unauthorized`         | Invalid or revoked API key                                          |
 | `402 Insufficient credits` | Open the returned `checkout_url`, or add credits at app.usercall.co |
 | `500` on create            | Verify your key has access to Agent API v1                          |
+| `event_not_observed`       | Usercall hasn't received the event. Add it to your SDK allowlist (`get_trigger_sdk_setup(events=[...])`), trigger it in your app, then retry |
+| `wrong_placement`          | The field is a trait, not a property (or the reverse). Use the suggested fix in the error |
+| Trait filters never match  | Call `window.usercall.identify({ userId, traits })` when the user is known (see `identify_snippet`) |
+| `409 activation_required`  | Expected: agents can't activate. Share `activation_url` with the user |
+| Active trigger never fires | Check the event is still arriving (`list_trigger_events`), and check the values match exactly (case and type) |
 
 Remote Claude / ChatGPT / Cursor connectors should use `https://mcp.usercall.co` (OAuth). This package is the API-key stdio path.
 

@@ -1,7 +1,7 @@
 {
   "name": "usercall",
-  "version": "0.2.0",
-  "description": "Run real user interviews from an agent and get themes plus verbatim quotes.",
+  "version": "0.3.0",
+  "description": "Run real user interviews from an agent and get themes plus verbatim quotes. Set up Research Triggers that interview users right after they do something in your product.",
   "author": {
     "name": "Usercall",
     "email": "contact@usercall.co",
