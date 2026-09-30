@@ -1,6 +1,7 @@
 {
   "name": "@usercall/mcp",
   "version": "0.4.0",
+  "mcpName": "co.usercall/mcp",
   "private": false,
   "description": "Usercall MCP server for Agent API v1",
   "license": "MIT",
