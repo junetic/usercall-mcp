@@ -14,6 +14,7 @@
         "event_name",
         "intercept_body",
         "intercept_title",
+        "invite_link_params",
         "max_invites_per_day",
         "name",
         "properties",
@@ -40,16 +41,18 @@
       "input_keys": [
         "additional_context_prompt",
         "business_context",
+        "custom_link_variables",
         "duration_minutes",
+        "enable_link_context",
         "interview_mode",
         "key_research_goal",
-        "language",
+        "languages",
         "metadata",
         "study_media",
-        "target_interviews"
+        "target_interviews",
+        "voice_gender"
       ],
       "required": [
-        "business_context",
         "key_research_goal"
       ]
     },
@@ -192,6 +195,36 @@
       "required": []
     },
     {
+      "name": "review_study",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "input_keys": [
+        "study_id"
+      ],
+      "required": [
+        "study_id"
+      ]
+    },
+    {
+      "name": "simulate_interview",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": true
+      },
+      "input_keys": [
+        "persona",
+        "simulation_id",
+        "study_id"
+      ],
+      "required": [
+        "study_id"
+      ]
+    },
+    {
       "name": "update_research_trigger",
       "annotations": {
         "readOnlyHint": false,
@@ -205,6 +238,7 @@
         "event_name",
         "intercept_body",
         "intercept_title",
+        "invite_link_params",
         "max_invites_per_day",
         "name",
         "properties",
@@ -230,12 +264,16 @@
       },
       "input_keys": [
         "ai_agent_intro_message",
+        "custom_link_variables",
+        "enable_link_context",
         "interview_mode",
         "is_link_disabled",
         "key_learning_goals",
+        "languages",
         "study_id",
         "study_media",
         "target_interviews",
+        "voice_gender",
         "workflow_end_message",
         "workflow_questions"
       ],

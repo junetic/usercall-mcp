@@ -6,7 +6,11 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
-import { createUsercallServer } from "./server.js";
+import {
+  STUDY_TOOL_CATALOG,
+  STUDY_TOOL_INPUT_SCHEMAS,
+  createUsercallServer,
+} from "./server.js";
 import {
   TRIGGER_TOOL_CATALOG,
   TRIGGER_TOOL_INPUT_SCHEMAS,
@@ -69,14 +73,42 @@ test("trigger tools match the hosted MCP manifest (names, annotations, inputs)",
   );
 });
 
-test("create/update descriptions state that only humans can activate", () => {
-  for (const name of ["create_research_trigger", "update_research_trigger"]) {
-    const tool = TRIGGER_TOOL_CATALOG.find((entry) => entry.name === name);
-    assert.match(
-      tool?.description ?? "",
-      /Only a human can activate them via the returned activation_url/,
+test("create/update descriptions state that a person must open activation_url", () => {
+  const create = TRIGGER_TOOL_CATALOG.find((entry) => entry.name === "create_research_trigger");
+  const update = TRIGGER_TOOL_CATALOG.find((entry) => entry.name === "update_research_trigger");
+  assert.match(create?.description ?? "", /You cannot turn it on/);
+  assert.match(create?.description ?? "", /activation_url/);
+  assert.match(update?.description ?? "", /Agents cannot set it active/);
+  assert.match(update?.description ?? "", /activation_url/);
+});
+
+test("study tools match the hosted MCP manifest (names, annotations, inputs)", () => {
+  for (const tool of STUDY_TOOL_CATALOG) {
+    const hosted = manifest.tools.find((entry) => entry.name === tool.name);
+    assert.ok(hosted, `${tool.name} missing from fixtures/tool-manifest.json`);
+
+    const shape = STUDY_TOOL_INPUT_SCHEMAS[tool.name].shape as Record<
+      string,
+      { isOptional(): boolean }
+    >;
+    assert.deepEqual(Object.keys(shape).sort(), hosted.input_keys, tool.name);
+    assert.deepEqual(
+      Object.keys(shape)
+        .filter((key) => !shape[key]!.isOptional())
+        .sort(),
+      hosted.required,
+      tool.name,
     );
+    assert.deepEqual(tool.annotations, hosted.annotations, tool.name);
   }
+
+  const hostedStudyTools = manifest.tools
+    .map((tool) => tool.name)
+    .filter((name) => !name.includes("trigger") && name !== "list_studies");
+  assert.deepEqual(
+    STUDY_TOOL_CATALOG.map((tool) => tool.name).sort(),
+    hostedStudyTools.sort(),
+  );
 });
 
 test("tool requests map to the Agent API", () => {
@@ -282,20 +314,156 @@ test("http_status from the transport cannot be overwritten by the API body", () 
   assert.equal(result.isError, true);
 });
 
-test("the stdio server registers every study and trigger tool", async () => {
+const STUDY_ID = "22222222-2222-4222-8222-222222222222";
+const SIMULATION_ID = "33333333-3333-4333-8333-333333333333";
+
+async function connectStudyServer(
+  fetchImpl: typeof fetch,
+) {
   const server = createUsercallServer({
     apiKey: "key_123",
-    baseUrl: "https://app.usercall.test",
-    fetchImpl: async () => new Response("{}"),
+    baseUrl: "https://app.usercall.test/",
+    fetchImpl,
   });
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   await server.connect(serverTransport);
   const client = new Client({ name: "test-client", version: "0.0.0" });
   await client.connect(clientTransport);
+  return client;
+}
+
+test("the stdio server registers every study and trigger tool", async () => {
+  assert.equal(manifest.tools.length, 17);
+  const client = await connectStudyServer(async () => new Response("{}"));
 
   const { tools } = await client.listTools();
+  assert.equal(tools.length, 17);
   assert.deepEqual(
     tools.map((tool) => tool.name).sort(),
     manifest.tools.map((tool) => tool.name).sort(),
   );
+
+  for (const expected of [...STUDY_TOOL_CATALOG, ...TRIGGER_TOOL_CATALOG]) {
+    const tool = tools.find((entry) => entry.name === expected.name);
+    assert.equal(tool?.description, expected.description, expected.name);
+  }
+});
+
+test("key_research_goal alone still creates a study", async () => {
+  let seen: { url: string; method?: string; body?: string } | undefined;
+  const client = await connectStudyServer(async (input, init) => {
+    seen = {
+      url: String(input),
+      method: init?.method,
+      body: typeof init?.body === "string" ? init.body : undefined,
+    };
+    return new Response(JSON.stringify({ study_id: STUDY_ID, interview_link: "https://call.example" }), {
+      status: 201,
+    });
+  });
+
+  const goal = "Why do invited teammates stop before they send the invite?";
+  const result = (await client.callTool({
+    name: "create_study",
+    arguments: { key_research_goal: goal },
+  })) as { isError?: boolean; content: Array<{ text: string }> };
+
+  assert.equal(result.isError, undefined);
+  assert.equal(seen?.method, "POST");
+  assert.equal(seen?.url, "https://app.usercall.test/api/v1/agent/studies");
+  assert.deepEqual(JSON.parse(seen?.body ?? "{}"), { key_research_goal: goal });
+});
+
+test("simulate_interview starts with POST and reads with GET without polling", async () => {
+  const calls: Array<{ url: string; method?: string; body?: string }> = [];
+  const client = await connectStudyServer(async (input, init) => {
+    calls.push({
+      url: String(input),
+      method: init?.method,
+      body: typeof init?.body === "string" ? init.body : undefined,
+    });
+    return new Response(
+      JSON.stringify({ status: "running", simulation_id: SIMULATION_ID }),
+      { status: 200 },
+    );
+  });
+
+  const started = (await client.callTool({
+    name: "simulate_interview",
+    arguments: { study_id: STUDY_ID },
+  })) as { isError?: boolean; content: Array<{ text: string }> };
+
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0]?.method, "POST");
+  assert.equal(
+    calls[0]?.url,
+    `https://app.usercall.test/api/v1/agent/studies/${STUDY_ID}/simulations`,
+  );
+  assert.equal(calls[0]?.body, "{}");
+  assert.equal(started.isError, undefined);
+  assert.match(started.content[0]?.text ?? "", /"status":"running"/);
+
+  const persona = { name: "Alex", prompt: "A new teammate who has not sent an invite." };
+  await client.callTool({
+    name: "simulate_interview",
+    arguments: { study_id: STUDY_ID, persona },
+  });
+  assert.equal(calls[1]?.body, JSON.stringify({ persona }));
+
+  await client.callTool({
+    name: "simulate_interview",
+    arguments: { study_id: STUDY_ID, simulation_id: SIMULATION_ID, persona },
+  });
+  assert.equal(calls.length, 3);
+  assert.equal(calls[2]?.method, "GET");
+  assert.equal(
+    calls[2]?.url,
+    `https://app.usercall.test/api/v1/agent/studies/${STUDY_ID}/simulations/${SIMULATION_ID}`,
+  );
+  assert.equal(calls[2]?.body, undefined);
+});
+
+test("simulate_interview and review_study pass API errors through", async () => {
+  let reviewBody: string | undefined;
+  const client = await connectStudyServer(async (input, init) => {
+    const url = String(input);
+    if (url.endsWith("/reviews")) {
+      reviewBody = typeof init?.body === "string" ? init.body : undefined;
+      return new Response(
+        JSON.stringify({
+          message: "Insufficient credits",
+          checkout_url: "https://app.usercall.co/checkout",
+        }),
+        { status: 402 },
+      );
+    }
+    return new Response(JSON.stringify({ message: "Daily simulation cap reached" }), {
+      status: 429,
+    });
+  });
+
+  const capped = (await client.callTool({
+    name: "simulate_interview",
+    arguments: { study_id: STUDY_ID },
+  })) as { isError?: boolean; content: Array<{ text: string }> };
+  assert.equal(capped.isError, true);
+  const capPayload = JSON.parse(capped.content[0]?.text ?? "{}") as {
+    http_status?: number;
+    message?: string;
+  };
+  assert.equal(capPayload.http_status, 429);
+  assert.match(capPayload.message ?? "", /Daily simulation cap reached/);
+
+  const reviewed = (await client.callTool({
+    name: "review_study",
+    arguments: { study_id: STUDY_ID },
+  })) as { isError?: boolean; content: Array<{ text: string }> };
+  assert.equal(reviewBody, "{}");
+  assert.equal(reviewed.isError, true);
+  const reviewPayload = JSON.parse(reviewed.content[0]?.text ?? "{}") as {
+    http_status?: number;
+    checkout_url?: string;
+  };
+  assert.equal(reviewPayload.http_status, 402);
+  assert.equal(reviewPayload.checkout_url, "https://app.usercall.co/checkout");
 });
