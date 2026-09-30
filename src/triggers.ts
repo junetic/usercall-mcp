@@ -17,9 +17,6 @@ export type TriggerApiCaller = (request: {
   body?: unknown;
 }) => Promise<TriggerApiResponse>;
 
-const PAUSED_NOTE =
-  "Triggers are created paused. Only a human can activate them via the returned activation_url. Present the summary and link to the user.";
-
 export const SETUP_PROVIDERS = [
   "posthog",
   "mixpanel",
@@ -136,6 +133,16 @@ const configShape = {
     .describe(
       "Optional HMAC secret; requests carry x-usercall-signature. Write-only: never returned.",
     ),
+  invite_link_params: z
+    .object({
+      static: z.record(z.string(), z.string()).optional(),
+      from_traits: z.record(z.string(), z.string()).optional(),
+      from_properties: z.record(z.string(), z.string()).optional(),
+    })
+    .optional()
+    .describe(
+      "Query params copied onto interview links when the study has link context enabled.",
+    ),
 };
 
 const triggerIdShape = { trigger_id: z.string().uuid() };
@@ -230,70 +237,71 @@ export const TRIGGER_TOOL_CATALOG: TriggerToolMeta[] = [
     name: "get_trigger_capabilities",
     title: "Get Trigger Capabilities",
     description:
-      "Machine-readable list of what Research Triggers support (single event + exact-match property/trait filters, URL, page dwell, sampling, cooldown, daily cap) and what they do not (counts, sequences, absence, time windows, not-equals). Call before designing a trigger.",
+      "Call before you design a trigger. Returns what Research Triggers support (one event plus exact-match property or trait filters, URL, page dwell, sampling, cooldown, daily cap) and what they do not (counts, sequences, absence, time windows, not-equals). Stop and send `interview_link` when the condition you need is unsupported.",
     annotations: readOnly,
   },
   {
     name: "get_trigger_sdk_setup",
     title: "Get Trigger SDK Setup",
     description:
-      "Returns the Usercall SDK install snippet (with your analytics provider binding and an allowlist of the events you pass), an identify snippet, an allowlist-update snippet, and install status. If you can edit the codebase, apply the snippet; otherwise show it to the user. Then call list_trigger_events to confirm events arrive. Never includes secret keys.",
+      "Call when `list_trigger_events` is empty and the product event must reach UserCall before `create_research_trigger`. Returns the SDK install snippet, an identify snippet, and install status. Never includes secret keys. If you can edit the codebase, apply the snippet; otherwise show it to a person. Then call `list_trigger_events` again. Stop and send `interview_link` if nobody can install the SDK.",
     annotations: write,
   },
   {
     name: "list_trigger_events",
     title: "List Trigger Events",
     description:
-      "Event names Usercall has actually received for this account in the last 30 days, with sources and whether an in-product intercept can be shown. Only observed events can be used in triggers. If empty, call get_trigger_sdk_setup.",
+      "Call before `create_research_trigger`. Returns event names UserCall has received for this account in the last 30 days. Only an observed event can be used. If the list is empty, call `get_trigger_sdk_setup`. If your event is missing, stop and send `interview_link` instead.",
     annotations: readOnly,
   },
   {
     name: "get_trigger_event_schema",
     title: "Get Trigger Event Schema",
     description:
-      "Observed fields for one event, split into event properties and user traits, with value types and sample values. Use it to put filters under the right key (properties vs traits) with exact values; matching is case- and type-sensitive.",
+      "Call after `list_trigger_events` shows the event and you need a filter. Returns observed properties and traits with types and sample values. Put filters under the right key. Matching is case- and type-sensitive. Stop if the value you need was never observed; do not invent a filter.",
     annotations: readOnly,
   },
-  // list_studies lives here (not with the study tools in server.ts) because it
-  // exists to pick a study for a trigger, matching the hosted MCP catalog.
+  // list_studies is registered with the trigger tools, matching the hosted catalog.
   {
     name: "list_studies",
     title: "List Studies",
     description:
-      "Interview studies in this account (id, title, trigger_eligible, interview_mode: voice | text | voice_and_text as offered by the in-app widget) so a Research Trigger can reuse an existing study. Use create_study to make a new one.",
+      "Call before `create_study`. Reuse an existing study when one already asks this question. Call `create_study` when it does not. Each row includes the same `interview_link` create returns. Stop once you have picked that study or confirmed none exists.",
     annotations: readOnly,
   },
   {
     name: "create_research_trigger",
     title: "Create Research Trigger",
-    description: `Create a Research Trigger that invites users to a study interview when an observed event occurs, optionally filtered by exact-match properties/traits, URL, or page dwell. delivery_method: "intercept" (default, in-app voice/text widget via the SDK) or "webhook" (POST each matched user, incl. identity and traits, to a public https webhook_url). Unsupported conditions are rejected, not dropped. ${PAUSED_NOTE}`,
+    description:
+      "Call only after a study exists and `list_trigger_events` has seen the event. It invites those people when that event occurs so you can ask why. Created paused. A person opens `activation_url`. You cannot turn it on. Use the shareable `interview_link` when the event is not in UserCall yet. Stop after you hand `activation_url` to a person. Unsupported conditions (counts, sequences, absence, time windows, not-equals) are rejected.",
     annotations: write,
   },
   {
     name: "list_research_triggers",
     title: "List Research Triggers",
     description:
-      "Research Triggers in this account with status, targeting, and a human-readable summary.",
+      "Call when you may already have a trigger for this study and event. Returns status and `activation_url`. Reuse a paused trigger and hand `activation_url` to a person. Call `create_research_trigger` only when none matches. Stop once you have that link or have confirmed you need a new trigger.",
     annotations: readOnly,
   },
   {
     name: "get_research_trigger",
     title: "Get Research Trigger",
     description:
-      "One Research Trigger with its configuration, summary, activation_url (while paused) and invite/interview counts.",
+      "Call when you have `trigger_id` and need status or `activation_url` while the trigger is paused. Hand `activation_url` to a person. Agents cannot activate. Stop polling this for interview evidence; call `get_study_status`.",
     annotations: readOnly,
   },
   {
     name: "update_research_trigger",
     title: "Update Research Trigger",
-    description: `Update targeting, sampling, cooldown, daily cap, intercept copy or delivery (intercept/webhook), or pause a trigger (status="paused"). Agents cannot activate: status="active" returns activation_url for the user. Changing an active trigger pauses it for re-approval. ${PAUSED_NOTE}`,
+    description:
+      "Call to change targeting, sampling, cooldown, daily cap, intercept copy, or delivery, or to pause a trigger. Agents cannot set it active. Changing an active trigger pauses it for re-approval. A person opens `activation_url`. Stop after you hand that link to a person.",
     annotations: write,
   },
   {
     name: "delete_research_trigger",
     title: "Delete Research Trigger",
     description:
-      "Permanently delete a Research Trigger. Interviews already completed are kept.",
+      "Call when the event or the study is wrong. Permanently deletes the trigger. Interviews already completed are kept. Stop. To pause without deleting, call `update_research_trigger` with status paused.",
     annotations: { ...write, destructiveHint: true },
   },
 ];

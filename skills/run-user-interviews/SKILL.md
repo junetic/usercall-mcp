@@ -16,18 +16,22 @@ Use the Usercall MCP (`usercall`) to create a study, share the interview link, t
 
 ## Workflow
 
-1. Call `create_study` with a concrete `key_research_goal` and `business_context`.
-2. Return `interview_link` immediately so the user can share it (email, Slack, Discord, or in-product). Interviews complete asynchronously as participants finish — minutes to hours. Do not sit in a poll loop.
-3. When the user says people are done, or they ask for results, call `get_study_status`. If status is `complete`, call `get_study_results`. If it is still `running` or `analyzing`, report `completed_interviews` / `target_interviews` and wait for the user.
-4. Present each theme with quotes from the `quotes` array. Do not paraphrase quotes.
-5. Use `update_study` only to change slots, interview mode, guide copy, questions, or media. The research goal cannot change.
-6. Use `delete_study` only when the user asks to delete the study.
+1. Call `list_studies` first. Reuse a study that already asks this question. Otherwise call `create_study` with `key_research_goal`. `business_context` is optional; `key_research_goal` alone still creates a study.
+2. Call `simulate_interview` before any real participant. Omit `simulation_id` to start. The start returns immediately with `running` and `simulation_id`; stop there and call again with that id. Do not poll inside the tool call. On `fail`, call `update_study`, then simulate again. On `pass`, share or review.
+3. Call `review_study` before sharing when you want a check of the interview guide. It reads the guide only. It does not read transcripts and it does not apply edits. Write suggested changes with `update_study`. Stop after one review unless the guide changed.
+4. Return `interview_link` so the user can share it (email, Slack, Discord, or in-product). Interviews complete asynchronously as participants finish — minutes to hours. Do not sit in a poll loop.
+5. When the user says people are done, or they ask for results, call `get_study_status`. If status is `complete`, call `get_study_results`. If it is still `running` or `analyzing`, report `completed_interviews` / `target_interviews` and wait for the user.
+6. Stay on `format=summary`. Use `format=full` only for a quote.
+7. Use `update_study` to write a guide change from review or a failed simulation. The research goal cannot change.
+8. Use `delete_study` only when the user asks to delete the study, or this study asks the wrong question.
 
 ## Constraints
 
 - One active agent study per personal Usercall account.
 - `interview_mode`: `voice` (default), `text`, or `voice_and_text`.
-- `language`: `auto` (default), `en`, or `ko`.
+- `languages`: optional locale list. One locale turns the language picker off; two or more turn it on.
+- A simulation is not an interview and does not change `completed_interviews`. Cap is 5 simulations per account per UTC day; a 429 means stop for the day.
+- `review_study` costs 1 credit. Short credits return `checkout_url`. Do not send `call_ids`.
 - Optional `study_media`: `image` (direct image URL) or `prototype` (Figma proto URL). Media is web-only; phone callers will not see it.
 - If `create_study` returns HTTP 402, give the user `checkout_url` so they can add credits.
 
@@ -56,7 +60,7 @@ create_study
 key_research_goal: "Understand why users drop off during onboarding"
 business_context: "B2B SaaS, 3-step signup flow"
 target_interviews: 5
-language: "en"
+languages: ["en"]
 interview_mode: "voice"
 ```
 

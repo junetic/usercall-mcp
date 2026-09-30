@@ -23,7 +23,7 @@ const response = await fetch(`${baseUrl.replace(/\/+$/, '')}/api/v1/agent/studie
     key_research_goal: keyResearchGoal,
     business_context: businessContext,
     target_interviews: 1,
-    language: 'en',
+    languages: ['en'],
     duration_minutes: 20,
   }),
 });

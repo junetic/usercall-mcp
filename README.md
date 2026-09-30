@@ -211,7 +211,7 @@ The agent will:
 1. create a study
 2. return an interview link
 3. collect responses
-4. return themes and verbatim quotes
+4. return the summary (themes, insights, and risks)
 
 ---
 
@@ -224,7 +224,7 @@ create_study
 key_research_goal: "Understand why users drop off during onboarding"
 business_context: "B2B SaaS signup flow"
 target_interviews: 5
-language: "en"
+languages: ["en"]
 interview_mode: "voice"
 
 study_media:
@@ -239,23 +239,24 @@ study_media:
 
 ### `create_study`
 
-Creates an interview study and returns `study_id` plus an `interview_link` to share with participants.
-
-One active agent study is allowed per personal account. If credits are insufficient, the API returns **402** with `checkout_url`.
+Interview affected users when analytics already shows a signal (funnel drop-off, churn, stalled activation, or an AI-feature failure) and still cannot say why. A PostHog team-invite drop, Amplitude export retention, a Pendo billing-guide dismissal, or AI summary regenerations are this job. `key_research_goal` is that question. `business_context` is optional: the product, the metric, the window, the counts, and who to interview. `key_research_goal` alone still creates a study. Returns `study_id` and `interview_link`. One active agent study per account. Short credits return `checkout_url` for a person to open. Skip this when the chart already names a tracking gap or a missing control. Call `list_studies` first and reuse a study that already asks this question.
 
 | Field                       | Type                                 | Required | Default |
 | --------------------------- | ------------------------------------ | -------- | ------- |
 | `key_research_goal`         | string (5–2000)                      | yes      |         |
-| `business_context`          | string (5–2000)                      | yes      |         |
+| `business_context`          | string (5–2000)                      | no       |         |
 | `additional_context_prompt` | string                               | no       |         |
 | `target_interviews`         | number (1–200)                       | no       | `1`     |
-| `language`                  | `auto \| en \| ko`                   | no       | `auto`  |
+| `languages`                 | string[]                             | no       |         |
 | `duration_minutes`          | number (5–65)                        | no       | `12`    |
 | `interview_mode`            | `voice \| text \| voice_and_text`    | no       | `voice` |
+| `voice_gender`              | `female \| male`                     | no       |         |
+| `enable_link_context`       | boolean                              | no       |         |
+| `custom_link_variables`     | `{ key, label?, default_value? }[]`  | no       |         |
 | `metadata`                  | object                               | no       |         |
 | `study_media`               | object                               | no       |         |
 
-Research goal cannot be changed after create.
+One locale turns the language picker off; two or more turn it on. Research goal cannot be changed after create.
 
 **study_media** (optional) — visual stimulus shown during all interview questions:
 
@@ -271,7 +272,7 @@ Research goal cannot be changed after create.
 
 ### `update_study`
 
-Updates an existing study. Use this to change interview slots, interview mode, guide copy, questions, or media. Research goal cannot be changed.
+Call after `review_study` or a failed simulation names a guide change, or when the link is disabled and you are about to share. Writes target interviews, interview mode, languages, voice gender, link context, guide text, or media. One locale turns the language picker off; two or more turn it on. Query params on `interview_link` are ignored until `enable_link_context` is true. You cannot change `key_research_goal`; delete the study and call `create_study`. Stop when the update returns. Then simulate or review again before sharing.
 
 | Field                    | Type                              | Required |
 | ------------------------ | --------------------------------- | -------- |
@@ -281,15 +282,19 @@ Updates an existing study. Use this to change interview slots, interview mode, g
 | `ai_agent_intro_message` | string                            | no       |
 | `key_learning_goals`     | string                            | no       |
 | `workflow_end_message`   | string                            | no       |
-| `workflow_questions`     | string[]                          | no       |
+| `workflow_questions`     | `{ text, ... }[]`                 | no       |
 | `interview_mode`         | `voice \| text \| voice_and_text` | no       |
+| `languages`              | string[]                          | no       |
+| `voice_gender`           | `female \| male`                  | no       |
+| `enable_link_context`    | boolean                           | no       |
+| `custom_link_variables`  | `{ key, label?, default_value? }[]` | no     |
 | `study_media`            | object or `null`                  | no       |
 
 Pass `study_media: null` to clear media. The `study_media` object follows the same schema as in `create_study`.
 
 ### `get_study_status`
 
-Returns the current lifecycle status of a study.
+Poll until `complete` after interviews are in progress. `running` and `analyzing` mean wait and call this again. Do not treat those payloads as a finding. Then call `get_study_results`. The response includes `interview_link` and `next_step`. `simulate_interview` means dry-run or review the guide before anyone is invited. `share` means send `interview_link`, or call `create_research_trigger` only after `list_trigger_events` has seen the event.
 
 | Field      | Type        |
 | ---------- | ----------- |
@@ -302,7 +307,7 @@ Response includes interview progress fields, including
 
 ### `get_study_results`
 
-Returns analysis output once the study is complete.
+Call after `get_study_status` is `complete`. Default `format=summary` returns themes, insights, and risks. `format=summary` is the concise response and `format=full` is the detailed one; stay on summary. Use `format=full` only for a quote. Summary is the evidence to place beside the original metric. Stop when that summary answers why. Empty themes while the study is still running are not a finding.
 
 | Field      | Type              | Required |
 | ---------- | ----------------- | -------- |
@@ -311,9 +316,31 @@ Returns analysis output once the study is complete.
 
 Summary/full responses include study progress fields and analysis output.
 
+### `simulate_interview`
+
+Call before any real participant, after create or a guide edit. Omit `simulation_id` to start. The start returns immediately with `running` and `simulation_id`; stop there and call again with that id. A later read returns `pass`, `fail`, or `error` and the transcript when the run is finished. Cap is 5 simulations per account per UTC day; a 429 means stop for the day. A simulation is not an interview and does not change `completed_interviews`. On `pass`, share or review. On `fail`, call `update_study`, then simulate again.
+
+| Field           | Type        | Required |
+| --------------- | ----------- | -------- |
+| `study_id`      | uuid string | yes      |
+| `simulation_id` | uuid string | no       |
+| `persona`       | `{ name, prompt }` | no       |
+
+Omit `simulation_id` to `POST /api/v1/agent/studies/{studyId}/simulations`. Pass `simulation_id` to `GET` that simulation. The tool does not poll.
+
+### `review_study`
+
+Call before sharing when you want a check of the interview guide. It reads the guide only. It does not read transcripts and it does not apply edits. It costs 1 credit and works when the in-app study review control is hidden. Short credits return `checkout_url` for a person to open. Write suggested changes with `update_study`. Stop after one review unless the guide changed.
+
+| Field      | Type        | Required |
+| ---------- | ----------- | -------- |
+| `study_id` | uuid string | yes      |
+
+Sends `study_id` only. It does not send `call_ids`.
+
 ### `delete_study`
 
-Permanently deletes a study and all associated data (recordings, transcripts). Releases unused reserved credits.
+Call when this study asks the wrong question or you must free the one active agent study. Permanently deletes the study and its interview calls and releases unused reserved credits. Stop. This cannot be undone. To stop new interviews without deleting evidence, call `update_study` with `is_link_disabled` true.
 
 | Field      | Type        | Required |
 | ---------- | ----------- | -------- |
@@ -327,7 +354,7 @@ Permanently deletes a study and all associated data (recordings, transcripts). R
 | `get_trigger_sdk_setup`    | SDK install snippet for `posthog`, `mixpanel`, `amplitude`, `segment`, `ga4` or `custom`, plus an `identify` snippet and install status |
 | `list_trigger_events`      | Events Usercall has received for your account in the last 30 days                                         |
 | `get_trigger_event_schema` | Observed properties vs traits for one event, with types and sample values                                 |
-| `list_studies`             | Studies in your account that a trigger can use                                                            |
+| `list_studies`             | Call before `create_study` and reuse a study that already asks this question                              |
 | `create_research_trigger`  | Create a **paused** trigger; returns `trigger_id`, `summary`, `activation_url`, `warnings`                |
 | `list_research_triggers`   | All triggers with status and summary                                                                      |
 | `get_research_trigger`     | One trigger with invite/interview counts                                                                  |
@@ -353,6 +380,7 @@ Permanently deletes a study and all associated data (recordings, transcripts). R
 | `delivery_method`     | `intercept` \| `webhook`                              | no       | intercept |
 | `webhook_url`         | public https URL (required for `webhook`)            | no       |         |
 | `webhook_secret`      | string (16–200), HMAC key, write-only                | no       |         |
+| `invite_link_params`  | `{ static?, from_traits?, from_properties? }`        | no       |         |
 | `name`                | string (≤100)                                        | no       | generated |
 
 For page-visit triggers, use `source: "page_visit"` and `event_name: "$pageview"`, with `url` and optionally `dwell_seconds`.
@@ -379,19 +407,31 @@ For page-visit triggers, use `source: "page_visit"` and `event_name: "$pageview"
    key_research_goal: "Why do users drop off during onboarding?"
    business_context: "B2B SaaS, 3-step signup flow"
    target_interviews: 5
-   language: "ko"
+   languages: ["ko"]
    interview_mode: "voice"
 
    → returns { study_id, interview_link }
+   (`business_context` is optional; `key_research_goal` alone still creates a study)
 
-2. Share interview_link with participants
+2. simulate_interview
+   study_id
+   → running, simulation_id
+   call again with simulation_id
+   → pass, fail, or error
+
+3. review_study
+   study_id
+   → guide check only; write changes with update_study
+
+4. Share interview_link with participants
    (email, Slack, in-product prompt, etc.)
 
-3. get_study_status
+5. get_study_status
    → "analyzing"
 
-4. get_study_results
-   → themes + verbatim quotes returned to the agent
+6. get_study_results
+   → summary: themes, insights, and risks
+   use format=full only for a quote
 ```
 
 ### With visual stimulus
@@ -452,6 +492,7 @@ USERCALL_API_KEY="your_key_here" SMOKE_STUDY_ID="<uuid>" SMOKE_EVENT_NAME="<obse
 | Trait filters never match  | Call `window.usercall.identify({ userId, traits })` when the user is known (see `identify_snippet`) |
 | `webhook_url_not_allowed`  | Use a public `https` URL, without credentials; localhost and private IPs are rejected |
 | `409 activation_required`  | Expected: agents can't activate. Share `activation_url` with the user |
+| `429` on `simulate_interview` | Cap is 5 simulations per account per UTC day. Stop for the day |
 | Active trigger never fires | Check the event is still arriving (`list_trigger_events`), and check the values match exactly (case and type) |
 
 Remote Claude / ChatGPT / Cursor connectors should use `https://mcp.usercall.co` (OAuth). This package is the API-key stdio path.
