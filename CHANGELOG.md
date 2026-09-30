@@ -8,8 +8,9 @@
 - `create_study` tells the agent to simulate before sharing the interview link
 - `create_research_trigger` / `update_research_trigger`: add `invite_link_params`
 - Copy tool descriptions and annotations from the hosted MCP catalog
+- `update_study` returns the API error body with `http_status`, so a guide update after a failed simulation keeps suggestions
+- `get_study_results` returns the API payload. Stay on summary; use full only for a quote
 - `create_research_trigger` / `update_research_trigger`: choose `delivery_method` (`intercept` or `webhook`) with `webhook_url` and a write-only `webhook_secret`
-- `list_studies` documents each study's `interview_mode` (what the in-app widget offers), returned by the Agent API
 
 ## 0.3.0
 

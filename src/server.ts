@@ -507,7 +507,8 @@ export function createUsercallServer(config: UsercallServerConfig) {
         );
         return result(payload);
       } catch (error) {
-        return errorResult(error);
+        if (error instanceof UsercallApiError) return toolResultFromApiError(error);
+        throw error;
       }
     },
   );
@@ -547,12 +548,7 @@ export function createUsercallServer(config: UsercallServerConfig) {
       const payload = await callUsercallApi(
         `/api/v1/agent/studies/${input.study_id}/results?format=${format}`,
       );
-      return result(
-        appendNote(
-          payload,
-          "When presenting these results, include verbatim participant quotes from each theme's quotes array. Do not paraphrase — show the actual words.",
-        ),
-      );
+      return result(payload);
     },
   );
 

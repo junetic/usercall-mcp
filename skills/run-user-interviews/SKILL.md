@@ -21,7 +21,7 @@ Use the Usercall MCP (`usercall`) to create a study, share the interview link, t
 3. Call `review_study` before sharing when you want a check of the interview guide. It reads the guide only. It does not read transcripts and it does not apply edits. Write suggested changes with `update_study`. Stop after one review unless the guide changed.
 4. Return `interview_link` so the user can share it (email, Slack, Discord, or in-product). Interviews complete asynchronously as participants finish — minutes to hours. Do not sit in a poll loop.
 5. When the user says people are done, or they ask for results, call `get_study_status`. If status is `complete`, call `get_study_results`. If it is still `running` or `analyzing`, report `completed_interviews` / `target_interviews` and wait for the user.
-6. Present each theme with quotes from the `quotes` array. Do not paraphrase quotes.
+6. Stay on `format=summary`. Use `format=full` only for a quote.
 7. Use `update_study` to write a guide change from review or a failed simulation. The research goal cannot change.
 8. Use `delete_study` only when the user asks to delete the study, or this study asks the wrong question.
 

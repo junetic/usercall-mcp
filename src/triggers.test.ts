@@ -407,6 +407,130 @@ test("update_study forwards workflow question objects", async () => {
   assert.equal(called, false);
 });
 
+const HOSTED_WORKFLOW_QUESTION_KEYS = [
+  "closedEndedType",
+  "customTransitionCondition",
+  "followUpCount",
+  "followUpPrompt",
+  "id",
+  "instructionType",
+  "isAdaptive",
+  "isClosedEnded",
+  "mediaDescription",
+  "mediaImage",
+  "mediaType",
+  "mediaUploadedFile",
+  "mediaUrl",
+  "order",
+  "text",
+];
+
+function workflowQuestionShape() {
+  let current = STUDY_TOOL_INPUT_SCHEMAS.update_study.shape.workflow_questions as {
+    shape?: Record<string, { isOptional(): boolean }>;
+    _def: { typeName?: string; innerType?: unknown; type?: unknown; schema?: unknown };
+  };
+  for (let i = 0; i < 8; i += 1) {
+    const typeName = current._def.typeName;
+    if (typeName === "ZodOptional" || typeName === "ZodNullable" || typeName === "ZodDefault") {
+      current = current._def.innerType as typeof current;
+      continue;
+    }
+    if (typeName === "ZodArray") {
+      current = current._def.type as typeof current;
+      continue;
+    }
+    if (typeName === "ZodEffects") {
+      current = current._def.schema as typeof current;
+      continue;
+    }
+    break;
+  }
+  return current.shape ?? {};
+}
+
+test("workflow question fields match the hosted schema and unknown keys are stripped", async () => {
+  const shape = workflowQuestionShape();
+  assert.deepEqual(Object.keys(shape).sort(), HOSTED_WORKFLOW_QUESTION_KEYS);
+  assert.deepEqual(
+    Object.keys(shape).filter((key) => !shape[key]!.isOptional()),
+    ["text"],
+  );
+
+  let body: unknown;
+  const client = await connectStudyServer(async (_input, init) => {
+    body = JSON.parse(String(init?.body));
+    return new Response(JSON.stringify({ study_id: STUDY_ID }), { status: 200 });
+  });
+  const forwarded = (await client.callTool({
+    name: "update_study",
+    arguments: {
+      study_id: STUDY_ID,
+      workflow_questions: [
+        { text: "What stopped you?", extraField: "drop me", followUpCount: 1 },
+      ],
+    },
+  })) as { isError?: boolean };
+  assert.notEqual(forwarded.isError, true);
+  assert.deepEqual(body, {
+    workflow_questions: [{ text: "What stopped you?", followUpCount: 1 }],
+  });
+
+  let called = false;
+  const rejecting = await connectStudyServer(async () => {
+    called = true;
+    return new Response("{}", { status: 200 });
+  });
+  const rejected = (await rejecting.callTool({
+    name: "update_study",
+    arguments: {
+      study_id: STUDY_ID,
+      workflow_questions: [{ text: "What stopped you?", followUpCount: 3 }],
+    },
+  })) as { isError?: boolean };
+  assert.equal(rejected.isError, true);
+  assert.equal(called, false);
+});
+
+test("update_study passes API errors through", async () => {
+  const client = await connectStudyServer(async () =>
+    new Response(
+      JSON.stringify({
+        message: "Invalid guide",
+        suggestions: ["Shorten question 2"],
+      }),
+      { status: 422 },
+    ),
+  );
+  const result = (await client.callTool({
+    name: "update_study",
+    arguments: { study_id: STUDY_ID, key_learning_goals: "Why they stopped" },
+  })) as { isError?: boolean; content: Array<{ text: string }> };
+
+  assert.equal(result.isError, true);
+  const payload = JSON.parse(result.content[0]?.text ?? "{}") as {
+    http_status?: number;
+    message?: string;
+    suggestions?: string[];
+  };
+  assert.equal(payload.http_status, 422);
+  assert.equal(payload.message, "Invalid guide");
+  assert.deepEqual(payload.suggestions, ["Shorten question 2"]);
+});
+
+test("get_study_results returns the API payload without a quotes note", async () => {
+  const client = await connectStudyServer(async () =>
+    new Response(JSON.stringify({ themes: [] }), { status: 200 }),
+  );
+  const result = (await client.callTool({
+    name: "get_study_results",
+    arguments: { study_id: STUDY_ID },
+  })) as { isError?: boolean; content: Array<{ text: string }> };
+
+  assert.notEqual(result.isError, true);
+  assert.deepEqual(JSON.parse(result.content[0]?.text ?? "{}"), { themes: [] });
+});
+
 test("simulate_interview starts with POST and reads with GET without polling", async () => {
   const calls: Array<{ url: string; method?: string; body?: string }> = [];
   const client = await connectStudyServer(async (input, init) => {

@@ -211,7 +211,7 @@ The agent will:
 1. create a study
 2. return an interview link
 3. collect responses
-4. return themes and verbatim quotes
+4. return the summary (themes, insights, and risks)
 
 ---
 
@@ -430,7 +430,8 @@ For page-visit triggers, use `source: "page_visit"` and `event_name: "$pageview"
    → "analyzing"
 
 6. get_study_results
-   → themes + verbatim quotes returned to the agent
+   → summary: themes, insights, and risks
+   use format=full only for a quote
 ```
 
 ### With visual stimulus
