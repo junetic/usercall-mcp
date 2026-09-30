@@ -372,6 +372,39 @@ test("key_research_goal alone still creates a study", async () => {
   assert.equal(seen?.method, "POST");
   assert.equal(seen?.url, "https://app.usercall.test/api/v1/agent/studies");
   assert.deepEqual(JSON.parse(seen?.body ?? "{}"), { key_research_goal: goal });
+  const note = JSON.parse(result.content[0]?.text ?? "{}")._note as string;
+  assert.match(note, /Call simulate_interview before any real participant/);
+  assert.doesNotMatch(note, /Share the interview_link with participants/);
+});
+
+test("update_study forwards workflow question objects", async () => {
+  let body: unknown;
+  const client = await connectStudyServer(async (_input, init) => {
+    body = JSON.parse(String(init?.body));
+    return new Response(JSON.stringify({ study_id: STUDY_ID }), { status: 200 });
+  });
+
+  const questions = [{ text: "What stopped you before sending the invite?" }];
+  const updated = (await client.callTool({
+    name: "update_study",
+    arguments: { study_id: STUDY_ID, workflow_questions: questions },
+  })) as { isError?: boolean };
+
+  assert.notEqual(updated.isError, true);
+  assert.deepEqual(body, { workflow_questions: questions });
+
+  let called = false;
+  const rejecting = await connectStudyServer(async () => {
+    called = true;
+    return new Response("{}", { status: 200 });
+  });
+  const rejected = (await rejecting.callTool({
+    name: "update_study",
+    arguments: { study_id: STUDY_ID, workflow_questions: ["What stopped you?"] },
+  })) as { isError?: boolean };
+
+  assert.equal(rejected.isError, true);
+  assert.equal(called, false);
 });
 
 test("simulate_interview starts with POST and reads with GET without polling", async () => {

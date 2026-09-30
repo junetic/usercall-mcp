@@ -82,6 +82,72 @@ const createStudySchema = z.object({
   study_media: studyMediaSchema.optional(),
 });
 
+const workflowQuestionSchema = z
+  .object({
+    id: z.string().trim().min(1).max(200).optional(),
+    text: z.string().trim().min(1).max(2000),
+    followUpCount: z.number().int().min(-1).max(5).optional(),
+    followUpPrompt: z.string().trim().max(2000).optional(),
+    instructionType: z.enum(["prompt", "static_text"]).optional(),
+    customTransitionCondition: z.string().trim().max(2000).optional(),
+    isAdaptive: z.boolean().optional(),
+    isClosedEnded: z.boolean().optional(),
+    closedEndedType: z.enum(["numeric", "categorical", "yes_no"]).optional(),
+    order: z.number().int().min(0).optional(),
+    mediaType: z.enum(["none", "image", "video", "prototype"]).optional(),
+    mediaUrl: z.string().trim().max(4000).optional(),
+    mediaUploadedFile: z.string().trim().max(4000).optional(),
+    mediaDescription: z.string().trim().max(4000).optional(),
+    mediaImage: z.string().trim().max(4000).optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.isClosedEnded) {
+      if (value.isAdaptive) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["isAdaptive"],
+          message: "Closed-ended questions cannot use adaptive follow-ups.",
+        });
+      }
+      if (value.followUpCount !== undefined && value.followUpCount !== 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["followUpCount"],
+          message: "Closed-ended questions must have no follow-ups.",
+        });
+      }
+    }
+
+    if (value.isAdaptive && value.followUpCount === -1) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["isAdaptive"],
+        message: "Adaptive probing cannot be combined with a custom transition condition.",
+      });
+    }
+
+    if (
+      value.isAdaptive &&
+      value.followUpCount !== undefined &&
+      value.followUpCount !== 3
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["followUpCount"],
+        message: "Adaptive questions must have followUpCount set to 3 (adaptive cap).",
+      });
+    }
+
+    if (value.followUpCount === 3 && value.isAdaptive !== true) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["isAdaptive"],
+        message:
+          "followUpCount=3 is reserved for adaptive questions. Set isAdaptive=true or pick a different follow-up count.",
+      });
+    }
+  });
+
 const updateStudySchema = z.object({
   study_id: z.string().uuid(),
   target_interviews: z
@@ -105,9 +171,11 @@ const updateStudySchema = z.object({
     .optional()
     .describe("Closing message shown when the interview ends."),
   workflow_questions: z
-    .array(z.string())
+    .array(workflowQuestionSchema)
+    .min(1)
+    .max(200)
     .optional()
-    .describe("Interview questions to ask participants, in order."),
+    .describe("Interview questions. Each item requires text."),
   interview_mode: z
     .enum(["voice", "text", "voice_and_text"])
     .optional()
@@ -406,9 +474,10 @@ export function createUsercallServer(config: UsercallServerConfig) {
         });
 
         const slots = input.target_interviews ?? 1;
-        const note = input.study_media
-          ? `Study created with ${slots} interview slot(s) and media attachment. Share the interview_link with participants (media visible on web only). Use update_study to change slots, guide copy, or media.`
-          : `Study created with ${slots} interview slot(s). Share the interview_link with participants. Use update_study to change slots, guide copy, or media.`;
+        const mediaNote = input.study_media
+          ? " Media is visible to web participants only."
+          : "";
+        const note = `Study created with ${slots} interview slot(s).${mediaNote} Call simulate_interview before any real participant. On pass, share interview_link or call review_study. On fail, call update_study, then simulate again.`;
 
         return result(appendNote(payload, note));
       } catch (error) {

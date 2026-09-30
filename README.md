@@ -282,7 +282,7 @@ Call after `review_study` or a failed simulation names a guide change, or when t
 | `ai_agent_intro_message` | string                            | no       |
 | `key_learning_goals`     | string                            | no       |
 | `workflow_end_message`   | string                            | no       |
-| `workflow_questions`     | string[]                          | no       |
+| `workflow_questions`     | `{ text, ... }[]`                 | no       |
 | `interview_mode`         | `voice \| text \| voice_and_text` | no       |
 | `languages`              | string[]                          | no       |
 | `voice_gender`           | `female \| male`                  | no       |
