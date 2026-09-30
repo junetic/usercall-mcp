@@ -479,6 +479,21 @@ USERCALL_API_KEY="your_key_here" SMOKE_STUDY_ID="<uuid>" SMOKE_EVENT_NAME="<obse
 
 ---
 
+## Official MCP Registry
+
+`server.json` publishes this server to the [Official MCP Registry](https://registry.modelcontextprotocol.io/) as `co.usercall/mcp`. That name is `mcpName` in `package.json`, and `server.json` `version` matches the package version.
+
+Publish `@usercall/mcp` to npm first. The registry checks the package. Then authenticate with DNS for `usercall.co` and publish the metadata:
+
+```bash
+mcp-publisher login dns --domain usercall.co --private-key "$MCP_PRIVATE_KEY"
+mcp-publisher publish
+```
+
+DNS auth proves control of `usercall.co` with a TXT record (`v=MCPv1; …`). Generate the Ed25519 key locally and keep the private key out of the repo. Steps: [DNS authentication](https://modelcontextprotocol.io/registry/authentication).
+
+---
+
 ## Troubleshooting
 
 | Error                      | Fix                                                                 |

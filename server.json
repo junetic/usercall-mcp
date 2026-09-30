@@ -1,0 +1,44 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "co.usercall/mcp",
+  "title": "Usercall",
+  "description": "Give your AI agents the ability to ask real users why.",
+  "version": "0.4.0",
+  "websiteUrl": "https://usercall.co",
+  "repository": {
+    "url": "https://github.com/junetic/usercall-mcp",
+    "source": "github"
+  },
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://mcp.usercall.co"
+    }
+  ],
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "@usercall/mcp",
+      "version": "0.4.0",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "USERCALL_API_KEY",
+          "description": "Usercall API key from app.usercall.co Developer settings (stdio only; hosted OAuth needs none).",
+          "isRequired": true,
+          "isSecret": true,
+          "format": "string"
+        },
+        {
+          "name": "USERCALL_BASE_URL",
+          "description": "Optional Agent API base URL.",
+          "isRequired": false,
+          "format": "string",
+          "default": "https://app.usercall.co"
+        }
+      ]
+    }
+  ]
+}

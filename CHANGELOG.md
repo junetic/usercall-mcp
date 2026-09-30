@@ -2,6 +2,7 @@
 
 ## 0.4.0
 
+- Official MCP Registry metadata: `mcpName` `co.usercall/mcp` and root `server.json`
 - Server instructions on initialize: tool order, simulation cap, and human handoff for credits and trigger activation
 - Annotations for OpenAI tool search: no tool is open-world, `get_trigger_sdk_setup` is read-only, deletes stay destructive
 - Human-readable titles and descriptions that say when to call each tool and how it differs from its siblings
