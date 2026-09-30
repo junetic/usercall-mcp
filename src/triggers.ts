@@ -235,73 +235,73 @@ const write = {
 export const TRIGGER_TOOL_CATALOG: TriggerToolMeta[] = [
   {
     name: "get_trigger_capabilities",
-    title: "Get Trigger Capabilities",
+    title: "Get trigger capabilities",
     description:
-      "Call before you design a trigger. Returns what Research Triggers support (one event plus exact-match property or trait filters, URL, page dwell, sampling, cooldown, daily cap) and what they do not (counts, sequences, absence, time windows, not-equals). Stop and send `interview_link` when the condition you need is unsupported.",
+      "Check what Research Triggers can do before you design one. Use this when you are about to decide who gets invited. Supported: one event, an exact property or trait match, a URL rule, and page dwell. Unsupported: counts, sequences, absence, time windows, and not-equals. If the condition you need is unsupported, send interview_link instead of calling create_research_trigger. This does not create a trigger.",
     annotations: readOnly,
   },
   {
     name: "get_trigger_sdk_setup",
-    title: "Get Trigger SDK Setup",
+    title: "Get trigger SDK setup",
     description:
-      "Call when `list_trigger_events` is empty and the product event must reach UserCall before `create_research_trigger`. Returns the SDK install snippet, an identify snippet, and install status. Never includes secret keys. If you can edit the codebase, apply the snippet; otherwise show it to a person. Then call `list_trigger_events` again. Stop and send `interview_link` if nobody can install the SDK.",
-    annotations: write,
+      "Get the SDK install snippet when list_trigger_events is empty and the product event must reach Usercall before a trigger can exist. Returns the install snippet, an identify snippet, and install status. Never includes secret keys. If you can edit the codebase, apply the snippet. Otherwise show it to a person. Then call list_trigger_events again. If nobody can install the SDK, send interview_link instead. This does not create a trigger.",
+    annotations: readOnly,
   },
   {
     name: "list_trigger_events",
-    title: "List Trigger Events",
+    title: "List trigger events",
     description:
-      "Call before `create_research_trigger`. Returns event names UserCall has received for this account in the last 30 days. Only an observed event can be used. If the list is empty, call `get_trigger_sdk_setup`. If your event is missing, stop and send `interview_link` instead.",
+      "List event names Usercall has received for this account in the last 30 days. Call this before create_research_trigger. Only an observed event can be used. If the list is empty, call get_trigger_sdk_setup. If your event is missing, send interview_link instead. This does not create a trigger. For filter fields, call get_trigger_event_schema.",
     annotations: readOnly,
   },
   {
     name: "get_trigger_event_schema",
-    title: "Get Trigger Event Schema",
+    title: "Get trigger event schema",
     description:
-      "Call after `list_trigger_events` shows the event and you need a filter. Returns observed properties and traits with types and sample values. Put filters under the right key. Matching is case- and type-sensitive. Stop if the value you need was never observed; do not invent a filter.",
+      "Read observed properties and traits for one event, with types and sample values. Use this after list_trigger_events shows the event and you need a filter. Put each filter under the right key. Matching is case-sensitive and type-sensitive. Stop if the value you need was never observed. Do not invent a filter. This does not create a trigger. For which filters are allowed at all, call get_trigger_capabilities.",
     annotations: readOnly,
   },
   // list_studies is registered with the trigger tools, matching the hosted catalog.
   {
     name: "list_studies",
-    title: "List Studies",
+    title: "List studies",
     description:
-      "Call before `create_study`. Reuse an existing study when one already asks this question. Call `create_study` when it does not. Each row includes the same `interview_link` create returns. Stop once you have picked that study or confirmed none exists.",
+      "List studies before you create one. Use this to reuse a study_id and interview_link, or to pick a study for a trigger. Reuse a study that already asks the question. trigger_eligible is false when the study has no interview link. Call create_study only when none of these studies fit. This does not create or edit a study.",
     annotations: readOnly,
   },
   {
     name: "create_research_trigger",
-    title: "Create Research Trigger",
+    title: "Create a research trigger",
     description:
-      "Call only after a study exists and `list_trigger_events` has seen the event. It invites those people when that event occurs so you can ask why. Created paused. A person opens `activation_url`. You cannot turn it on. Use the shareable `interview_link` when the event is not in UserCall yet. Stop after you hand `activation_url` to a person. Unsupported conditions (counts, sequences, absence, time windows, not-equals) are rejected.",
+      "Create a paused invite that asks people why after an event you have already observed. Use this only after a study exists and list_trigger_events has seen the event. Call get_trigger_event_schema first if you need a filter. Returns activation_url for a human to open. Agents cannot activate the trigger and cannot send the link. If the event is not in Usercall yet, share interview_link instead. Unsupported filters are rejected.",
     annotations: write,
   },
   {
     name: "list_research_triggers",
-    title: "List Research Triggers",
+    title: "List research triggers",
     description:
-      "Call when you may already have a trigger for this study and event. Returns status and `activation_url`. Reuse a paused trigger and hand `activation_url` to a person. Call `create_research_trigger` only when none matches. Stop once you have that link or have confirmed you need a new trigger.",
+      "List research triggers with status and activation_url. Use this to recover a paused trigger's activation link for a human. The activation link is empty after a human activates the trigger. Agents cannot activate. Call create_research_trigger only when no trigger matches this study and event. This does not change a trigger.",
     annotations: readOnly,
   },
   {
     name: "get_research_trigger",
-    title: "Get Research Trigger",
+    title: "Get a research trigger",
     description:
-      "Call when you have `trigger_id` and need status or `activation_url` while the trigger is paused. Hand `activation_url` to a person. Agents cannot activate. Stop polling this for interview evidence; call `get_study_status`.",
+      "Read one trigger when you already have trigger_id and need its status or activation_url while it is paused. Hand activation_url to a human. Agents cannot activate. Do not poll this for interview evidence. Call get_study_status for that. This does not change the trigger. To see every trigger, call list_research_triggers.",
     annotations: readOnly,
   },
   {
     name: "update_research_trigger",
-    title: "Update Research Trigger",
+    title: "Update a research trigger",
     description:
-      "Call to change targeting, sampling, cooldown, daily cap, intercept copy, or delivery, or to pause a trigger. Agents cannot set it active. Changing an active trigger pauses it for re-approval. A person opens `activation_url`. Stop after you hand that link to a person.",
+      "Edit a trigger's targeting, sampling, cooldown, daily cap, intercept copy, or delivery. Use this to change who is invited or to pause a trigger. Never set status to active. That returns 409 with activation_url for a human. Editing an active trigger pauses it until a human re-approves. This does not activate a trigger. To delete it, call delete_research_trigger.",
     annotations: write,
   },
   {
     name: "delete_research_trigger",
-    title: "Delete Research Trigger",
+    title: "Delete a research trigger",
     description:
-      "Call when the event or the study is wrong. Permanently deletes the trigger. Interviews already completed are kept. Stop. To pause without deleting, call `update_research_trigger` with status paused.",
+      "Permanently delete a research trigger when the event or the study is wrong. Interviews already completed are kept. This cannot be undone. To pause without deleting, call update_research_trigger with status paused. This does not delete the study. Call delete_study for that.",
     annotations: { ...write, destructiveHint: true },
   },
 ];
