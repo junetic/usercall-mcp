@@ -7,6 +7,9 @@ import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
 import {
+  PACKAGE_VERSION,
+  SERVER_INSTRUCTIONS,
+  SERVER_INSTRUCTIONS_LEAD,
   STUDY_TOOL_CATALOG,
   STUDY_TOOL_INPUT_SCHEMAS,
   createUsercallServer,
@@ -76,9 +79,10 @@ test("trigger tools match the hosted MCP manifest (names, annotations, inputs)",
 test("create/update descriptions state that a person must open activation_url", () => {
   const create = TRIGGER_TOOL_CATALOG.find((entry) => entry.name === "create_research_trigger");
   const update = TRIGGER_TOOL_CATALOG.find((entry) => entry.name === "update_research_trigger");
-  assert.match(create?.description ?? "", /You cannot turn it on/);
+  assert.match(create?.description ?? "", /cannot activate/);
   assert.match(create?.description ?? "", /activation_url/);
-  assert.match(update?.description ?? "", /Agents cannot set it active/);
+  assert.match(update?.description ?? "", /Never set status to active/);
+  assert.match(update?.description ?? "", /409/);
   assert.match(update?.description ?? "", /activation_url/);
 });
 
@@ -336,6 +340,11 @@ test("the stdio server registers every study and trigger tool", async () => {
   assert.equal(manifest.tools.length, 17);
   const client = await connectStudyServer(async () => new Response("{}"));
 
+  const instructions = client.getInstructions();
+  assert.equal(SERVER_INSTRUCTIONS_LEAD.length, 508);
+  assert.equal(instructions?.slice(0, 508), SERVER_INSTRUCTIONS_LEAD);
+  assert.equal(instructions, SERVER_INSTRUCTIONS);
+
   const { tools } = await client.listTools();
   assert.equal(tools.length, 17);
   assert.deepEqual(
@@ -346,6 +355,54 @@ test("the stdio server registers every study and trigger tool", async () => {
   for (const expected of [...STUDY_TOOL_CATALOG, ...TRIGGER_TOOL_CATALOG]) {
     const tool = tools.find((entry) => entry.name === expected.name);
     assert.equal(tool?.description, expected.description, expected.name);
+    assert.equal(tool?.title, expected.title, expected.name);
+    assert.equal(tool?.annotations?.readOnlyHint, expected.annotations.readOnlyHint, expected.name);
+    assert.equal(
+      tool?.annotations?.destructiveHint,
+      expected.annotations.destructiveHint,
+      expected.name,
+    );
+    assert.equal(tool?.annotations?.openWorldHint, false, expected.name);
+  }
+});
+
+test("fixtures/tools-list.json matches initialize instructions and listTools", async () => {
+  const dump = JSON.parse(
+    readFileSync(new URL("../fixtures/tools-list.json", import.meta.url), "utf8"),
+  ) as {
+    version: string;
+    instructions: string;
+    tools: Array<{
+      name: string;
+      title?: string;
+      description?: string;
+      annotations?: {
+        readOnlyHint?: boolean;
+        destructiveHint?: boolean;
+        openWorldHint?: boolean;
+      };
+    }>;
+  };
+  const client = await connectStudyServer(async () => new Response("{}"));
+  const { tools } = await client.listTools();
+
+  assert.equal(dump.version, PACKAGE_VERSION);
+  assert.equal(dump.instructions, client.getInstructions());
+  assert.deepEqual(
+    dump.tools.map((tool) => tool.name),
+    tools.map((tool) => tool.name),
+  );
+  for (const dumped of dump.tools) {
+    const tool = tools.find((entry) => entry.name === dumped.name);
+    assert.equal(dumped.title, tool?.title, dumped.name);
+    assert.equal(dumped.description, tool?.description, dumped.name);
+    assert.equal(dumped.annotations?.readOnlyHint, tool?.annotations?.readOnlyHint, dumped.name);
+    assert.equal(
+      dumped.annotations?.destructiveHint,
+      tool?.annotations?.destructiveHint,
+      dumped.name,
+    );
+    assert.equal(dumped.annotations?.openWorldHint, tool?.annotations?.openWorldHint, dumped.name);
   }
 });
 

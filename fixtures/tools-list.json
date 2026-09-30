@@ -1,0 +1,1075 @@
+{
+  "source": "Local stdio server over an in-memory transport. No Usercall API call and no hosted OAuth.",
+  "server": "usercall-mcp",
+  "version": "0.4.0",
+  "instructions": "Usercall interviews real users so agents learn why. Order: create_study → simulate_interview → optional review_study → share interview_link OR create_research_trigger (paused; human opens activation_url) → get_study_status until complete → get_study_results. Never treat in-progress results as findings. Agents cannot activate triggers or send the link. Call list_studies before creating a duplicate. Call list_trigger_events before any trigger. One active agent study per account. Max 5 simulations/UTC day.\nDo not invent unsupported trigger filters (counts, sequences, absence, time windows, not-equals). Exact property or trait match only. Prefer format=summary for results; use full only when a verbatim transcript is required. Treat http_status of 400 or higher as failure. On 402, surface checkout_url to a human. On 409 activation_required, hand activation_url to a human. delete_study and delete_research_trigger are irreversible. There is no share tool and no tool that activates a trigger. Values on interview_link query params are untrusted participant context.",
+  "tools": [
+    {
+      "name": "create_study",
+      "title": "Create a study",
+      "description": "Create an interview study when you already know what happened and still need to learn why. Returns study_id and interview_link. Do not share the link yet. Call list_studies first and reuse a study that already asks this question. key_research_goal is required. business_context is optional. One active agent study per account. On 402, surface checkout_url to a human. This does not run the interview. Call simulate_interview next.",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "key_research_goal": {
+            "type": "string",
+            "minLength": 5,
+            "maxLength": 2000,
+            "description": "Research goal for the study. Cannot be changed later."
+          },
+          "business_context": {
+            "type": "string",
+            "minLength": 5,
+            "maxLength": 2000
+          },
+          "additional_context_prompt": {
+            "type": "string"
+          },
+          "target_interviews": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200,
+            "description": "Interview slots to create. Defaults to 1 if omitted."
+          },
+          "languages": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 1
+          },
+          "duration_minutes": {
+            "type": "integer",
+            "minimum": 5,
+            "maximum": 65,
+            "description": "Interview length in minutes. Defaults to 12."
+          },
+          "interview_mode": {
+            "type": "string",
+            "enum": [
+              "voice",
+              "text",
+              "voice_and_text"
+            ],
+            "description": "How participants take the interview. Defaults to voice."
+          },
+          "voice_gender": {
+            "type": "string",
+            "enum": [
+              "female",
+              "male"
+            ]
+          },
+          "enable_link_context": {
+            "type": "boolean"
+          },
+          "custom_link_variables": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "key": {
+                  "type": "string",
+                  "pattern": "^[a-z][a-z0-9_]{0,31}$"
+                },
+                "label": {
+                  "type": "string",
+                  "maxLength": 60
+                },
+                "default_value": {
+                  "type": "string",
+                  "maxLength": 200
+                }
+              },
+              "required": [
+                "key"
+              ],
+              "additionalProperties": false
+            },
+            "maxItems": 10
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": {}
+          },
+          "study_media": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "image",
+                  "prototype"
+                ],
+                "description": "Media type: 'image' for direct image URLs (.png, .jpg, .gif, .webp) or 'prototype' for Figma prototype URLs"
+              },
+              "url": {
+                "type": "string",
+                "format": "uri",
+                "description": "Public URL to the image or Figma prototype"
+              },
+              "description": {
+                "type": "string",
+                "maxLength": 500,
+                "description": "Alt text / context shown to participants"
+              }
+            },
+            "required": [
+              "type",
+              "url"
+            ],
+            "additionalProperties": false,
+            "description": "Visual stimulus shown during all interview questions (web participants only)"
+          }
+        },
+        "required": [
+          "key_research_goal"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "update_study",
+      "title": "Update a study",
+      "description": "Edit an existing study's slots, interview mode, languages, voice, link context, guide text, questions, or media. Use this after review_study or a failed simulation names a guide change, or when the link is disabled and you are about to share. You cannot change key_research_goal. Delete the study and call create_study for a new question. One locale turns the language picker off. Two or more turn it on. Query params on interview_link are ignored until enable_link_context is true. This does not simulate or share. Call simulate_interview again before sharing.",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "study_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "target_interviews": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200,
+            "description": "Total number of interview slots for this study."
+          },
+          "is_link_disabled": {
+            "type": "boolean"
+          },
+          "ai_agent_intro_message": {
+            "type": "string",
+            "description": "Opening message the interviewer says to participants."
+          },
+          "key_learning_goals": {
+            "type": "string",
+            "description": "Learning goals that guide the interviewer."
+          },
+          "workflow_end_message": {
+            "type": "string",
+            "description": "Closing message shown when the interview ends."
+          },
+          "workflow_questions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                },
+                "text": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 2000
+                },
+                "followUpCount": {
+                  "type": "integer",
+                  "minimum": -1,
+                  "maximum": 5
+                },
+                "followUpPrompt": {
+                  "type": "string",
+                  "maxLength": 2000
+                },
+                "instructionType": {
+                  "type": "string",
+                  "enum": [
+                    "prompt",
+                    "static_text"
+                  ]
+                },
+                "customTransitionCondition": {
+                  "type": "string",
+                  "maxLength": 2000
+                },
+                "isAdaptive": {
+                  "type": "boolean"
+                },
+                "isClosedEnded": {
+                  "type": "boolean"
+                },
+                "closedEndedType": {
+                  "type": "string",
+                  "enum": [
+                    "numeric",
+                    "categorical",
+                    "yes_no"
+                  ]
+                },
+                "order": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "mediaType": {
+                  "type": "string",
+                  "enum": [
+                    "none",
+                    "image",
+                    "video",
+                    "prototype"
+                  ]
+                },
+                "mediaUrl": {
+                  "type": "string",
+                  "maxLength": 4000
+                },
+                "mediaUploadedFile": {
+                  "type": "string",
+                  "maxLength": 4000
+                },
+                "mediaDescription": {
+                  "type": "string",
+                  "maxLength": 4000
+                },
+                "mediaImage": {
+                  "type": "string",
+                  "maxLength": 4000
+                }
+              },
+              "required": [
+                "text"
+              ],
+              "additionalProperties": false
+            },
+            "minItems": 1,
+            "maxItems": 200,
+            "description": "Interview questions. Each item requires text."
+          },
+          "interview_mode": {
+            "type": "string",
+            "enum": [
+              "voice",
+              "text",
+              "voice_and_text"
+            ],
+            "description": "How participants take the interview."
+          },
+          "languages": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 1
+          },
+          "voice_gender": {
+            "type": "string",
+            "enum": [
+              "female",
+              "male"
+            ]
+          },
+          "enable_link_context": {
+            "type": "boolean"
+          },
+          "custom_link_variables": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "key": {
+                  "type": "string",
+                  "pattern": "^[a-z][a-z0-9_]{0,31}$"
+                },
+                "label": {
+                  "type": "string",
+                  "maxLength": 60
+                },
+                "default_value": {
+                  "type": "string",
+                  "maxLength": 200
+                }
+              },
+              "required": [
+                "key"
+              ],
+              "additionalProperties": false
+            },
+            "maxItems": 10
+          },
+          "study_media": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "image",
+                      "prototype"
+                    ],
+                    "description": "Media type: 'image' for direct image URLs (.png, .jpg, .gif, .webp) or 'prototype' for Figma prototype URLs"
+                  },
+                  "url": {
+                    "type": "string",
+                    "format": "uri",
+                    "description": "Public URL to the image or Figma prototype"
+                  },
+                  "description": {
+                    "type": "string",
+                    "maxLength": 500,
+                    "description": "Alt text / context shown to participants"
+                  }
+                },
+                "required": [
+                  "type",
+                  "url"
+                ],
+                "additionalProperties": false,
+                "description": "Visual stimulus shown during all interview questions (web participants only)"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Visual stimulus shown during all interview questions (web participants only). Pass null to clear."
+          }
+        },
+        "required": [
+          "study_id"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "get_study_status",
+      "title": "Get study status",
+      "description": "Check whether a study is running, analyzing, or complete while interviews are in progress. running and analyzing mean wait and call this again. Do not treat those payloads as findings. When status is complete, call get_study_results. The response includes interview_link and next_step. This does not return themes and it does not change the study. For a dry run before anyone is invited, call simulate_interview instead.",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "study_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "study_id"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "get_study_results",
+      "title": "Get study results",
+      "description": "Read findings after get_study_status is complete. Use this when you need why, not another status check. Prefer format=summary for themes, insights, and risks. Use format=full only when a verbatim transcript is required. Summary is the evidence to place beside the original metric. Empty themes while the study is still running are not a finding. This does not create interviews or edit the guide.",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "study_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "summary",
+              "full"
+            ]
+          }
+        },
+        "required": [
+          "study_id"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "simulate_interview",
+      "title": "Simulate an interview",
+      "description": "Dry-run the interview after you create or edit a study, and before any real invite. Omit simulation_id to start. Pass that id on a later call to read the result. The start returns immediately with running. Cap is 5 simulations per account per UTC day. A 429 means stop for the day. A simulation is not a completed interview and does not change completed_interviews. On pass, share or call review_study. On fail, call update_study, then simulate again. This does not invite a participant.",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "study_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "simulation_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "persona": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 80
+              },
+              "prompt": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 4000
+              }
+            },
+            "required": [
+              "name",
+              "prompt"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "study_id"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "review_study",
+      "title": "Review the interview guide",
+      "description": "Check the interview guide before sharing it with a real participant. Use this when you want a read of the guide only. It does not read transcripts and it does not apply edits. It costs 1 credit and works when the in-app review control is hidden. On 402, surface checkout_url to a human. Write suggested changes with update_study. Stop after one review unless the guide changed. This is not simulate_interview and it is not get_study_results.",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "study_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "study_id"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "delete_study",
+      "title": "Delete a study",
+      "description": "Permanently delete a study when it asks the wrong question or you must free the one active agent study. This removes the study and its interview calls and releases unused reserved credits. It cannot be undone. To stop new interviews without deleting evidence, call update_study with is_link_disabled true. This does not delete a research trigger. Call delete_research_trigger for that.",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "study_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "study_id"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "get_trigger_capabilities",
+      "title": "Get trigger capabilities",
+      "description": "Check what Research Triggers can do before you design one. Use this when you are about to decide who gets invited. Supported: one event, an exact property or trait match, a URL rule, and page dwell. Unsupported: counts, sequences, absence, time windows, and not-equals. If the condition you need is unsupported, send interview_link instead of calling create_research_trigger. This does not create a trigger.",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "get_trigger_sdk_setup",
+      "title": "Get trigger SDK setup",
+      "description": "Get the SDK install snippet when list_trigger_events is empty and the product event must reach Usercall before a trigger can exist. Returns the install snippet, an identify snippet, and install status. Never includes secret keys. If you can edit the codebase, apply the snippet. Otherwise show it to a person. Then call list_trigger_events again. If nobody can install the SDK, send interview_link instead. This does not create a trigger.",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "provider": {
+            "type": "string",
+            "enum": [
+              "posthog",
+              "mixpanel",
+              "amplitude",
+              "segment",
+              "ga4",
+              "custom"
+            ],
+            "description": "Analytics provider the SDK should listen to (default posthog)."
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "maxItems": 50,
+            "description": "Event names to allowlist in the snippet."
+          }
+        },
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "list_trigger_events",
+      "title": "List trigger events",
+      "description": "List event names Usercall has received for this account in the last 30 days. Call this before create_research_trigger. Only an observed event can be used. If the list is empty, call get_trigger_sdk_setup. If your event is missing, send interview_link instead. This does not create a trigger. For filter fields, call get_trigger_event_schema.",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "get_trigger_event_schema",
+      "title": "Get trigger event schema",
+      "description": "Read observed properties and traits for one event, with types and sample values. Use this after list_trigger_events shows the event and you need a filter. Put each filter under the right key. Matching is case-sensitive and type-sensitive. Stop if the value you need was never observed. Do not invent a filter. This does not create a trigger. For which filters are allowed at all, call get_trigger_capabilities.",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "event_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          }
+        },
+        "required": [
+          "event_name"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "list_studies",
+      "title": "List studies",
+      "description": "List studies before you create one. Use this to reuse a study_id and interview_link, or to pick a study for a trigger. Reuse a study that already asks the question. trigger_eligible is false when the study has no interview link. Call create_study only when none of these studies fit. This does not create or edit a study.",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "create_research_trigger",
+      "title": "Create a research trigger",
+      "description": "Create a paused invite that asks people why after an event you have already observed. Use this only after a study exists and list_trigger_events has seen the event. Call get_trigger_event_schema first if you need a filter. Returns activation_url for a human to open. Agents cannot activate the trigger and cannot send the link. If the event is not in Usercall yet, share interview_link instead. Unsupported filters are rejected.",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "study_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Study from list_studies or create_study."
+          },
+          "event_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120,
+            "description": "An event returned by list_trigger_events."
+          },
+          "properties": {
+            "type": "object",
+            "additionalProperties": {
+              "type": [
+                "string",
+                "number",
+                "boolean"
+              ]
+            },
+            "propertyNames": {
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "description": "Exact-match filters on event properties (see get_trigger_event_schema)."
+          },
+          "traits": {
+            "$ref": "#/properties/properties",
+            "description": "Exact-match filters on user traits (see get_trigger_event_schema)."
+          },
+          "url": {
+            "type": "object",
+            "properties": {
+              "match": {
+                "type": "string",
+                "enum": [
+                  "equals",
+                  "contains",
+                  "starts_with"
+                ]
+              },
+              "value": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 500
+              }
+            },
+            "required": [
+              "match",
+              "value"
+            ],
+            "additionalProperties": false,
+            "description": "Page URL rule. Matches the page path, query or hash."
+          },
+          "dwell_seconds": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 600,
+            "description": "Page-visit triggers only: fire once the visitor has stayed this many seconds on a matching page."
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "page_visit",
+              "analytics_event",
+              "custom"
+            ],
+            "description": "Trigger source. Use \"page_visit\" with event_name \"$pageview\" for URL/dwell page-visit triggers."
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "sampling_percent": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "description": "Percent of matching users to invite (default 100)."
+          },
+          "cooldown_days": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 365,
+            "description": "Days before the same user can be invited again (default 30)."
+          },
+          "max_invites_per_day": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "description": "Daily invitation cap for this trigger (default 100)."
+          },
+          "intercept_title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120,
+            "description": "Small label above the prompt, e.g. \"AI-guided · 2-3 minutes\"."
+          },
+          "intercept_body": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500,
+            "description": "Prompt text shown to the user."
+          },
+          "delivery_method": {
+            "type": "string",
+            "enum": [
+              "intercept",
+              "webhook"
+            ],
+            "description": "intercept (default): in-app voice/text widget via the Usercall SDK. webhook: POST each matched user to webhook_url."
+          },
+          "webhook_url": {
+            "type": "string",
+            "format": "uri",
+            "maxLength": 500,
+            "description": "Public https endpoint for delivery_method webhook. Receives user ID, email, traits, event properties and a personal interview link. To remove a webhook, set delivery_method \"intercept\" (clears webhook_url and webhook_secret)."
+          },
+          "webhook_secret": {
+            "type": "string",
+            "minLength": 16,
+            "maxLength": 200,
+            "description": "Optional HMAC secret; requests carry x-usercall-signature. Write-only: never returned."
+          },
+          "invite_link_params": {
+            "type": "object",
+            "properties": {
+              "static": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                }
+              },
+              "from_traits": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                }
+              },
+              "from_properties": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                }
+              }
+            },
+            "additionalProperties": false,
+            "description": "Query params copied onto interview links when the study has link context enabled."
+          }
+        },
+        "required": [
+          "study_id",
+          "event_name"
+        ],
+        "additionalProperties": true,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "list_research_triggers",
+      "title": "List research triggers",
+      "description": "List research triggers with status and activation_url. Use this to recover a paused trigger's activation link for a human. The activation link is empty after a human activates the trigger. Agents cannot activate. Call create_research_trigger only when no trigger matches this study and event. This does not change a trigger.",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "get_research_trigger",
+      "title": "Get a research trigger",
+      "description": "Read one trigger when you already have trigger_id and need its status or activation_url while it is paused. Hand activation_url to a human. Agents cannot activate. Do not poll this for interview evidence. Call get_study_status for that. This does not change the trigger. To see every trigger, call list_research_triggers.",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "trigger_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "trigger_id"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "update_research_trigger",
+      "title": "Update a research trigger",
+      "description": "Edit a trigger's targeting, sampling, cooldown, daily cap, intercept copy, or delivery. Use this to change who is invited or to pause a trigger. Never set status to active. That returns 409 with activation_url for a human. Editing an active trigger pauses it until a human re-approves. This does not activate a trigger. To delete it, call delete_research_trigger.",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "trigger_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "event_name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120,
+            "description": "An event returned by list_trigger_events."
+          },
+          "properties": {
+            "anyOf": [
+              {
+                "type": "object",
+                "additionalProperties": {
+                  "type": [
+                    "string",
+                    "number",
+                    "boolean"
+                  ]
+                },
+                "propertyNames": {
+                  "minLength": 1,
+                  "maxLength": 120
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "traits": {
+            "anyOf": [
+              {
+                "$ref": "#/properties/properties/anyOf/0"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "match": {
+                    "type": "string",
+                    "enum": [
+                      "equals",
+                      "contains",
+                      "starts_with"
+                    ]
+                  },
+                  "value": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 500
+                  }
+                },
+                "required": [
+                  "match",
+                  "value"
+                ],
+                "additionalProperties": false,
+                "description": "Page URL rule. Matches the page path, query or hash."
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Page URL rule. Matches the page path, query or hash."
+          },
+          "dwell_seconds": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 600
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "page_visit",
+                  "analytics_event",
+                  "custom"
+                ],
+                "description": "Trigger source. Use \"page_visit\" with event_name \"$pageview\" for URL/dwell page-visit triggers."
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Trigger source. Use \"page_visit\" with event_name \"$pageview\" for URL/dwell page-visit triggers."
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "sampling_percent": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "description": "Percent of matching users to invite (default 100)."
+          },
+          "cooldown_days": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 365,
+            "description": "Days before the same user can be invited again (default 30)."
+          },
+          "max_invites_per_day": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "description": "Daily invitation cap for this trigger (default 100)."
+          },
+          "intercept_title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120,
+            "description": "Small label above the prompt, e.g. \"AI-guided · 2-3 minutes\"."
+          },
+          "intercept_body": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500,
+            "description": "Prompt text shown to the user."
+          },
+          "delivery_method": {
+            "type": "string",
+            "enum": [
+              "intercept",
+              "webhook"
+            ],
+            "description": "intercept (default): in-app voice/text widget via the Usercall SDK. webhook: POST each matched user to webhook_url."
+          },
+          "webhook_url": {
+            "type": "string",
+            "format": "uri",
+            "maxLength": 500,
+            "description": "Public https endpoint for delivery_method webhook. Receives user ID, email, traits, event properties and a personal interview link. To remove a webhook, set delivery_method \"intercept\" (clears webhook_url and webhook_secret)."
+          },
+          "webhook_secret": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 16,
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Optional HMAC secret; requests carry x-usercall-signature. Write-only: never returned. null removes it."
+          },
+          "invite_link_params": {
+            "type": "object",
+            "properties": {
+              "static": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                }
+              },
+              "from_traits": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                }
+              },
+              "from_properties": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "string"
+                }
+              }
+            },
+            "additionalProperties": false,
+            "description": "Query params copied onto interview links when the study has link context enabled."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "paused"
+            ],
+            "description": "Use \"paused\" to pause. \"active\" is rejected: only a human can activate via activation_url."
+          }
+        },
+        "required": [
+          "trigger_id"
+        ],
+        "additionalProperties": true,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    },
+    {
+      "name": "delete_research_trigger",
+      "title": "Delete a research trigger",
+      "description": "Permanently delete a research trigger when the event or the study is wrong. Interviews already completed are kept. This cannot be undone. To pause without deleting, call update_research_trigger with status paused. This does not delete the study. Call delete_study for that.",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "trigger_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "trigger_id"
+        ],
+        "additionalProperties": false,
+        "$schema": "http://json-schema.org/draft-07/schema#"
+      }
+    }
+  ]
+}

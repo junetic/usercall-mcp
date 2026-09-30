@@ -36,7 +36,7 @@
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": false,
-        "openWorldHint": true
+        "openWorldHint": false
       },
       "input_keys": [
         "additional_context_prompt",
@@ -154,7 +154,7 @@
     {
       "name": "get_trigger_sdk_setup",
       "annotations": {
-        "readOnlyHint": false,
+        "readOnlyHint": true,
         "destructiveHint": false,
         "openWorldHint": false
       },
@@ -213,7 +213,7 @@
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": false,
-        "openWorldHint": true
+        "openWorldHint": false
       },
       "input_keys": [
         "persona",

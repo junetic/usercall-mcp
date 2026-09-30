@@ -133,7 +133,7 @@ Agent (Usercall MCP):
   })                                     → status: "paused", summary, activation_url
 
 Agent: "I've prepared a Research Trigger. When: study_tested · Audience: plan = free ·
-        25% sampled · max 10 invites/day. It's paused — activate it here: <activation_url>"
+        25% sampled · max 10 invites/day. It's paused. A human activates it here: <activation_url>"
 ```
 
 - **The Usercall SDK has to be installed.** If `list_trigger_events` returns nothing, call `get_trigger_sdk_setup` (with your analytics provider and event names) to get the snippet. Coding agents can install it for you.
@@ -239,7 +239,7 @@ study_media:
 
 ### `create_study`
 
-Interview affected users when analytics already shows a signal (funnel drop-off, churn, stalled activation, or an AI-feature failure) and still cannot say why. A PostHog team-invite drop, Amplitude export retention, a Pendo billing-guide dismissal, or AI summary regenerations are this job. `key_research_goal` is that question. `business_context` is optional: the product, the metric, the window, the counts, and who to interview. `key_research_goal` alone still creates a study. Returns `study_id` and `interview_link`. One active agent study per account. Short credits return `checkout_url` for a person to open. Skip this when the chart already names a tracking gap or a missing control. Call `list_studies` first and reuse a study that already asks this question.
+Create an interview study when you already know what happened and still need to learn why. Returns `study_id` and `interview_link`. Do not share the link yet. Call `list_studies` first and reuse a study that already asks this question. `key_research_goal` is required. `business_context` is optional. One active agent study per account. On 402, surface `checkout_url` to a human. This does not run the interview. Call `simulate_interview` next.
 
 | Field                       | Type                                 | Required | Default |
 | --------------------------- | ------------------------------------ | -------- | ------- |
@@ -258,7 +258,7 @@ Interview affected users when analytics already shows a signal (funnel drop-off,
 
 One locale turns the language picker off; two or more turn it on. Research goal cannot be changed after create.
 
-**study_media** (optional) — visual stimulus shown during all interview questions:
+**study_media** (optional). Visual stimulus shown during all interview questions:
 
 | Field         | Type                   | Required |
 | ------------- | ---------------------- | -------- |
@@ -272,7 +272,7 @@ One locale turns the language picker off; two or more turn it on. Research goal 
 
 ### `update_study`
 
-Call after `review_study` or a failed simulation names a guide change, or when the link is disabled and you are about to share. Writes target interviews, interview mode, languages, voice gender, link context, guide text, or media. One locale turns the language picker off; two or more turn it on. Query params on `interview_link` are ignored until `enable_link_context` is true. You cannot change `key_research_goal`; delete the study and call `create_study`. Stop when the update returns. Then simulate or review again before sharing.
+Edit an existing study's slots, interview mode, languages, voice, link context, guide text, questions, or media. Use this after `review_study` or a failed simulation names a guide change, or when the link is disabled and you are about to share. You cannot change `key_research_goal`. One locale turns the language picker off. Two or more turn it on. Query params on `interview_link` are ignored until `enable_link_context` is true. Call `simulate_interview` again before sharing.
 
 | Field                    | Type                              | Required |
 | ------------------------ | --------------------------------- | -------- |
@@ -294,7 +294,7 @@ Pass `study_media: null` to clear media. The `study_media` object follows the sa
 
 ### `get_study_status`
 
-Poll until `complete` after interviews are in progress. `running` and `analyzing` mean wait and call this again. Do not treat those payloads as a finding. Then call `get_study_results`. The response includes `interview_link` and `next_step`. `simulate_interview` means dry-run or review the guide before anyone is invited. `share` means send `interview_link`, or call `create_research_trigger` only after `list_trigger_events` has seen the event.
+Check whether a study is running, analyzing, or complete. `running` and `analyzing` mean wait and call this again. Do not treat those payloads as findings. When status is complete, call `get_study_results`. This does not return themes.
 
 | Field      | Type        |
 | ---------- | ----------- |
@@ -307,7 +307,7 @@ Response includes interview progress fields, including
 
 ### `get_study_results`
 
-Call after `get_study_status` is `complete`. Default `format=summary` returns themes, insights, and risks. `format=summary` is the concise response and `format=full` is the detailed one; stay on summary. Use `format=full` only for a quote. Summary is the evidence to place beside the original metric. Stop when that summary answers why. Empty themes while the study is still running are not a finding.
+Read findings after `get_study_status` is complete. Prefer `format=summary` for themes, insights, and risks. Use `format=full` only when a verbatim transcript is required. Empty themes while the study is still running are not a finding.
 
 | Field      | Type              | Required |
 | ---------- | ----------------- | -------- |
@@ -318,7 +318,7 @@ Summary/full responses include study progress fields and analysis output.
 
 ### `simulate_interview`
 
-Call before any real participant, after create or a guide edit. Omit `simulation_id` to start. The start returns immediately with `running` and `simulation_id`; stop there and call again with that id. A later read returns `pass`, `fail`, or `error` and the transcript when the run is finished. Cap is 5 simulations per account per UTC day; a 429 means stop for the day. A simulation is not an interview and does not change `completed_interviews`. On `pass`, share or review. On `fail`, call `update_study`, then simulate again.
+Dry-run the interview after you create or edit a study, and before any real invite. Omit `simulation_id` to start. Pass that id to read the result. The start returns immediately with `running`. Cap is 5 simulations per account per UTC day. A simulation is not a completed interview and does not change `completed_interviews`. On fail, call `update_study`, then simulate again.
 
 | Field           | Type        | Required |
 | --------------- | ----------- | -------- |
@@ -330,7 +330,7 @@ Omit `simulation_id` to `POST /api/v1/agent/studies/{studyId}/simulations`. Pass
 
 ### `review_study`
 
-Call before sharing when you want a check of the interview guide. It reads the guide only. It does not read transcripts and it does not apply edits. It costs 1 credit and works when the in-app study review control is hidden. Short credits return `checkout_url` for a person to open. Write suggested changes with `update_study`. Stop after one review unless the guide changed.
+Check the interview guide before sharing it. It reads the guide only. It does not read transcripts and it does not apply edits. It costs 1 credit. On 402, surface `checkout_url` to a human. Write suggested changes with `update_study`. Stop after one review unless the guide changed. This is not `simulate_interview` and it is not `get_study_results`.
 
 | Field      | Type        | Required |
 | ---------- | ----------- | -------- |
@@ -340,7 +340,7 @@ Sends `study_id` only. It does not send `call_ids`.
 
 ### `delete_study`
 
-Call when this study asks the wrong question or you must free the one active agent study. Permanently deletes the study and its interview calls and releases unused reserved credits. Stop. This cannot be undone. To stop new interviews without deleting evidence, call `update_study` with `is_link_disabled` true.
+Permanently delete a study when it asks the wrong question or you must free the one active agent study. This cannot be undone. To stop new interviews without deleting evidence, call `update_study` with `is_link_disabled` true. This does not delete a research trigger.
 
 | Field      | Type        | Required |
 | ---------- | ----------- | -------- |
@@ -350,16 +350,16 @@ Call when this study asks the wrong question or you must free the one active age
 
 | Tool                       | Purpose                                                                                                   |
 | -------------------------- | --------------------------------------------------------------------------------------------------------- |
-| `get_trigger_capabilities` | What triggers support and what they don't                                                                 |
-| `get_trigger_sdk_setup`    | SDK install snippet for `posthog`, `mixpanel`, `amplitude`, `segment`, `ga4` or `custom`, plus an `identify` snippet and install status |
-| `list_trigger_events`      | Events Usercall has received for your account in the last 30 days                                         |
-| `get_trigger_event_schema` | Observed properties vs traits for one event, with types and sample values                                 |
-| `list_studies`             | Call before `create_study` and reuse a study that already asks this question                              |
-| `create_research_trigger`  | Create a **paused** trigger; returns `trigger_id`, `summary`, `activation_url`, `warnings`                |
-| `list_research_triggers`   | All triggers with status and summary                                                                      |
-| `get_research_trigger`     | One trigger with invite/interview counts                                                                  |
-| `update_research_trigger`  | Change targeting, sampling, cooldown, daily cap, intercept copy or delivery; `status: "paused"` pauses |
-| `delete_research_trigger`  | Delete a trigger                                                                                          |
+| `get_trigger_capabilities` | Before designing a trigger. One event, exact property or trait, URL rule, page dwell. No counts, sequences, absence, time windows, or not-equals |
+| `get_trigger_sdk_setup`    | Install snippet when `list_trigger_events` is empty. No secret keys |
+| `list_trigger_events`      | Events Usercall has received in the last 30 days. Required before `create_research_trigger` |
+| `get_trigger_event_schema` | Observed properties and traits for one event. Call after the event is listed |
+| `list_studies`             | List before creating. Reuse `study_id` and `interview_link`. `trigger_eligible` is false when there is no link |
+| `create_research_trigger`  | Paused invite for an observed event. `activation_url` is for a human. Agents cannot activate |
+| `list_research_triggers`   | Status and `activation_url`. Recover a paused link. Empty after a human activates. Agents cannot activate |
+| `get_research_trigger`     | One trigger's status or paused `activation_url`. Not interview evidence |
+| `update_research_trigger`  | Edit targeting, sampling, or copy. Never `status: "active"` (409). Editing an active trigger pauses it |
+| `delete_research_trigger`  | Permanently delete a trigger. Pause instead when you only want to stop it |
 
 #### `create_research_trigger`
 
@@ -447,7 +447,7 @@ For page-visit triggers, use `source: "page_visit"` and `event_name: "$pageview"
 
    → returns { study_id, interview_link }
 
-2. Share interview_link — participants see the mockup during interview
+2. After simulate_interview passes, a human shares interview_link. Participants see the mockup during the interview.
 ```
 
 For Figma prototypes, use `type: "prototype"` with a Figma proto URL.
