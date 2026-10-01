@@ -2,8 +2,8 @@
 
 ## Unreleased
 
-- Tool descriptions, parameter descriptions, and initialize instructions state what each tool does and what it returns. Workflow order stays in `skills/run-user-interviews/SKILL.md`.
-- Removed the cross-tool order that was written so OpenAI tool search would read a fixed interview sequence from the first ~512 characters of server instructions and from each tool description.
+- Tool descriptions, parameter descriptions, and initialize instructions state what each tool does, what it returns, and its limits. The first ~512 characters of initialize instructions are product facts (voice or text, `activation_url`, study and simulation limits, summary vs full, HTTP 402 and 409). Workflow order stays in `skills/run-user-interviews/SKILL.md`.
+- Removed the cross-tool order that was written so OpenAI tool search would read a fixed interview sequence from server instructions and from each tool description.
 
 ## 0.4.0
 

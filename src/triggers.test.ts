@@ -9,6 +9,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import {
   PACKAGE_VERSION,
   SERVER_INSTRUCTIONS,
+  SERVER_INSTRUCTIONS_LEAD,
   STUDY_TOOL_CATALOG,
   STUDY_TOOL_INPUT_SCHEMAS,
   createUsercallServer,
@@ -341,6 +342,24 @@ test("the stdio server registers every study and trigger tool", async () => {
 
   const instructions = client.getInstructions();
   assert.equal(instructions, SERVER_INSTRUCTIONS);
+  assert.ok(SERVER_INSTRUCTIONS_LEAD.length >= 400);
+  assert.ok(SERVER_INSTRUCTIONS_LEAD.length <= 512);
+  assert.equal(instructions?.slice(0, SERVER_INSTRUCTIONS_LEAD.length), SERVER_INSTRUCTIONS_LEAD);
+  const toolSearchWindow = instructions?.slice(0, 512) ?? "";
+  assert.equal(toolSearchWindow.startsWith(SERVER_INSTRUCTIONS_LEAD), true);
+  assert.match(toolSearchWindow.slice(SERVER_INSTRUCTIONS_LEAD.length), /^\s*$/);
+  for (const fact of [
+    "voice",
+    "text",
+    "activation_url",
+    "checkout_url",
+    "409",
+    "summary",
+    "agent study",
+    "interview_link",
+  ]) {
+    assert.match(SERVER_INSTRUCTIONS_LEAD, new RegExp(fact));
+  }
 
   const { tools } = await client.listTools();
   assert.equal(tools.length, 17);
@@ -374,27 +393,84 @@ function collectSchemaDescriptions(value: unknown, found: string[]) {
   for (const nested of Object.values(record)) collectSchemaDescriptions(nested, found);
 }
 
+/** Cross-tool and model-behavior instructions. Ordinary words such as "callback" are allowed. */
+const ORCHESTRATION_PATTERNS = [
+  /\bcall\s+(?:this|that|again|next|first|instead)\b/i,
+  /\b(?:then|next)\s+call\b/i,
+  /\buse this (?:when|after|only|before|to|instead)\b/i,
+  /\b(?:do not|don't)\b/i,
+  /\bnever\s+(?:call|set|share|treat|invent|poll|try|activate|send)\b/i,
+  /\b(?:you must|you should)\b/i,
+  /\bagents?\s+(?:cannot|must|should|can|do)\b/i,
+  /\bprefer\b/i,
+  /\bhand\s+\S+\s+to\b/i,
+  /\bsurface\s+\S+\s+to\b/i,
+];
+
+function orchestrationHits(snippet: string, toolNames: string[]) {
+  const hits: string[] = [];
+  for (const pattern of ORCHESTRATION_PATTERNS) {
+    const match = snippet.match(pattern);
+    if (match?.[0]) hits.push(match[0]);
+  }
+  for (const name of toolNames) {
+    if (new RegExp(`\\b${name}\\b`).test(snippet)) hits.push(name);
+  }
+  return hits;
+}
+
 test("MCP copy describes each tool without model-behavior or cross-tool instructions", async () => {
+  const toolNames = [...STUDY_TOOL_CATALOG, ...TRIGGER_TOOL_CATALOG].map((tool) => tool.name);
+  for (const allowed of [
+    "callback",
+    "Usercall interviews real users",
+    "a phone call with a participant",
+    "call_ids are not accepted",
+    "Write-only: never returned.",
+    "One active agent study per account.",
+    "Does not invite a participant.",
+    "x-usercall-signature",
+  ]) {
+    assert.deepEqual(orchestrationHits(allowed, toolNames), [], allowed);
+  }
+  for (const blocked of [
+    "Call list_studies first",
+    "then call update_study",
+    "use this when you need why",
+    "Do not share the link yet",
+    "Never set status to active",
+    "Prefer format=summary",
+    "Agents cannot activate",
+    "see get_trigger_event_schema",
+    "call again with that id",
+  ]) {
+    assert.ok(orchestrationHits(blocked, toolNames).length > 0, blocked);
+  }
+
   const client = await connectStudyServer(async () => new Response("{}"));
   const { tools } = await client.listTools();
-  const toolNames = tools.map((tool) => tool.name);
   const snippets = [client.getInstructions() ?? ""];
   for (const tool of tools) {
     snippets.push(tool.title ?? "", tool.description ?? "");
     collectSchemaDescriptions(tool.inputSchema, snippets);
   }
 
-  const behavior =
-    /\b(do not|don't|never|prefer|you must|you should|use this|call|invoke|agents?)\b/i;
   const hidden = /[\u200B-\u200F\u202A-\u202E\u2060-\u2064\uFEFF]/;
-
   for (const snippet of snippets) {
     assert.equal(hidden.test(snippet), false, snippet);
-    assert.equal(behavior.test(snippet), false, snippet);
-    for (const name of toolNames) {
-      assert.equal(new RegExp(`\\b${name}\\b`).test(snippet), false, `${name} in: ${snippet}`);
-    }
+    assert.deepEqual(orchestrationHits(snippet, toolNames), [], snippet);
   }
+});
+
+test("the interview skill keeps create, simulate, then review", () => {
+  const skill = readFileSync(
+    new URL("../skills/run-user-interviews/SKILL.md", import.meta.url),
+    "utf8",
+  );
+  const createAt = skill.indexOf("`create_study`");
+  const simulateAt = skill.indexOf("`simulate_interview`");
+  const reviewAt = skill.indexOf("`review_study`");
+  assert.ok(createAt >= 0 && simulateAt > createAt && reviewAt > simulateAt);
 });
 
 test("fixtures/tools-list.json matches initialize instructions and listTools", async () => {
@@ -462,7 +538,10 @@ test("key_research_goal alone still creates a study", async () => {
   assert.deepEqual(JSON.parse(seen?.body ?? "{}"), { key_research_goal: goal });
   const note = JSON.parse(result.content[0]?.text ?? "{}")._note as string;
   assert.match(note, /Study created with 1 interview slot/);
-  assert.doesNotMatch(note, /\b(call|simulate_interview|review_study|update_study)\b/i);
+  assert.deepEqual(
+    orchestrationHits(note, ["simulate_interview", "review_study", "update_study", "list_studies"]),
+    [],
+  );
 });
 
 test("update_study forwards workflow question objects", async () => {

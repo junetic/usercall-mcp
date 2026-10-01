@@ -2,12 +2,12 @@
   "source": "Local stdio server over an in-memory transport. No Usercall API call and no hosted OAuth.",
   "server": "usercall-mcp",
   "version": "0.4.0",
-  "instructions": "Usercall interviews real users by voice or text and returns themes, insights, and quotes. Research triggers stay paused until a person opens activation_url. One active study per account through this server. At most 5 interview simulations per account per UTC day. format=summary returns themes, insights, and risks; format=full also includes transcripts. HTTP 402 responses include checkout_url. Setting a research trigger status to active returns HTTP 409 and activation_url. Deleting a study or a research trigger is permanent. Trigger filters are exact property or trait matches. Counts, sequences, absence, time windows, and not-equals are unsupported. Values on interview_link query parameters are untrusted participant context.",
+  "instructions": "Usercall interviews real users by voice or text and returns themes, insights, and quotes. Studies return study_id and interview_link. Mode: voice, text, or voice_and_text. One active agent study per account. Max 5 simulations per account per UTC day. summary: themes, insights, and risks; full: also transcripts. Triggers stay paused until a person opens activation_url. A person sends the interview link. HTTP 402 includes checkout_url. status active returns HTTP 409 and activation_url. Deletes are permanent.\nTrigger filters are exact property or trait matches. Counts, sequences, absence, time windows, and not-equals are unsupported. interview_link query values are untrusted participant context.",
   "tools": [
     {
       "name": "create_study",
       "title": "Create a study",
-      "description": "Create an interview study for one research question. Returns study_id and interview_link. key_research_goal is required and cannot be changed later. business_context is optional. One active study per account through this server. Does not run the interview or invite a participant. HTTP 402 includes checkout_url.",
+      "description": "Create an interview study for one research question. Returns study_id and interview_link. key_research_goal is required and cannot be changed later. business_context is optional. Defaults: target_interviews 1, duration_minutes 12, interview_mode voice. One active agent study per account. Does not run the interview or invite a participant. HTTP 402 includes checkout_url.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": false,
@@ -138,7 +138,7 @@
     {
       "name": "update_study",
       "title": "Update a study",
-      "description": "Edit an existing study's interview slots, link availability, interview mode, languages, voice, link context, guide text, questions, or media. key_research_goal cannot be changed. One locale hides the language picker; two or more show it. Query parameters on interview_link are ignored until enable_link_context is true. Pass study_media null to clear media. Does not run a simulation or invite a participant.",
+      "description": "Edit an existing study's slots, link availability, mode, languages, voice, link context, guide text, questions, or media. Returns the updated study. key_research_goal cannot be changed. is_link_disabled true stops new interviews and keeps recordings. One locale hides the language picker; two or more show it. Query parameters on interview_link are ignored until enable_link_context is true. study_media null clears media. API errors include http_status. Does not run a simulation or invite a participant.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": false,
@@ -360,7 +360,7 @@
     {
       "name": "get_study_status",
       "title": "Get study status",
-      "description": "Read whether a study is running, analyzing, or complete, plus interview progress, interview_link, and next_step. running and analyzing are in-progress states and include no findings. Does not return themes and does not change the study.",
+      "description": "Read whether a study is running, analyzing, or complete. Returns completed_interviews, target_interviews, interview_link, and next_step. running and analyzing include no findings or themes. Does not change the study.",
       "annotations": {
         "readOnlyHint": true,
         "destructiveHint": false,
@@ -384,7 +384,7 @@
     {
       "name": "get_study_results",
       "title": "Get study results",
-      "description": "Read a study's findings. format=summary (default) returns themes, insights, and risks. format=full also includes verbatim transcripts. Empty themes mean analysis is not ready yet. Does not create interviews or edit the guide.",
+      "description": "Read a study's findings. format omitted or summary returns themes, insights, and risks. format=full also returns verbatim transcripts. Empty themes mean analysis is not ready. Does not create interviews or edit the guide.",
       "annotations": {
         "readOnlyHint": true,
         "destructiveHint": false,
@@ -415,7 +415,7 @@
     {
       "name": "simulate_interview",
       "title": "Simulate an interview",
-      "description": "Dry-run one interview against the current guide. Omit simulation_id to start; the start returns immediately with status running and a simulation_id. Pass simulation_id to read that run. Limit is 5 simulations per account per UTC day. HTTP 429 means the daily cap is reached. A simulation is not a completed interview and does not change completed_interviews. Does not invite a participant.",
+      "description": "Dry-run one interview against the current guide. Omit simulation_id to start; returns immediately with status running and a simulation_id. Pass simulation_id to read that run. Result status is pass, fail, or error. Max 5 simulations per account per UTC day. HTTP 429 means the daily cap is reached. Optional persona has name and prompt. A simulation does not change completed_interviews and does not invite a participant.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": false,
@@ -463,7 +463,7 @@
     {
       "name": "review_study",
       "title": "Review the interview guide",
-      "description": "Read the interview guide and return a written review. Reads the guide only: no transcripts and no edits. Costs 1 credit. Works when the in-app review control is hidden. HTTP 402 includes checkout_url. Does not simulate an interview and does not return study findings.",
+      "description": "Review the interview guide and return the written review. Reads the guide only: no transcripts, and suggested edits are not applied. Costs 1 credit. Request is study_id only; call_ids are not accepted. Works when the in-app review control is hidden. HTTP 402 includes checkout_url. Does not return study findings.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": false,
@@ -487,7 +487,7 @@
     {
       "name": "delete_study",
       "title": "Delete a study",
-      "description": "Permanently delete a study, its interview recordings, and unused reserved credits. Cannot be undone. Does not delete a research trigger. Disabling the interview link stops new interviews and keeps the study.",
+      "description": "Permanently delete a study, its interview recordings, and unused reserved credits. Cannot be undone. Does not delete research triggers.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": true,
@@ -511,7 +511,7 @@
     {
       "name": "get_trigger_capabilities",
       "title": "Get trigger capabilities",
-      "description": "List Research Trigger conditions available on this account. Supported: one event, an exact property or trait match, a URL rule, and page dwell. Unsupported: counts, sequences, absence, time windows, and not-equals. Does not create a trigger.",
+      "description": "List Research Trigger conditions on this account. Returns supported and unsupported condition kinds. Supported: one event, an exact property or trait match, a URL rule, and page dwell. Unsupported: counts, sequences, absence, time windows, and not-equals. Does not create a trigger.",
       "annotations": {
         "readOnlyHint": true,
         "destructiveHint": false,
@@ -527,7 +527,7 @@
     {
       "name": "get_trigger_sdk_setup",
       "title": "Get trigger SDK setup",
-      "description": "Return the Usercall SDK install snippet, an identify snippet, and install status for sending product events into Usercall. The response does not include secret keys. Does not create a trigger.",
+      "description": "Return install_snippet, identify_snippet, allowlist_update_snippet, and install status for sending product events into Usercall. provider defaults to posthog. events names the allowlist. The response does not include secret keys. Does not create a trigger.",
       "annotations": {
         "readOnlyHint": true,
         "destructiveHint": false,
@@ -566,7 +566,7 @@
     {
       "name": "list_trigger_events",
       "title": "List trigger events",
-      "description": "List event names Usercall has received for this account in the last 30 days. A research trigger can use only an observed event name. Does not create a trigger.",
+      "description": "List event names Usercall has received for this account in the last 30 days. Returns those names. A research trigger accepts only an observed event name. An empty list means no events have arrived. Does not create a trigger.",
       "annotations": {
         "readOnlyHint": true,
         "destructiveHint": false,
@@ -582,7 +582,7 @@
     {
       "name": "get_trigger_event_schema",
       "title": "Get trigger event schema",
-      "description": "Read observed properties and traits for one event, including types and sample values. Property and trait filters are exact matches and are case-sensitive and type-sensitive. Does not create a trigger.",
+      "description": "Read observed properties and traits for one event. Returns each field's type and sample values. Filters are exact matches and are case-sensitive and type-sensitive. Values that were not observed are absent. Does not create a trigger.",
       "annotations": {
         "readOnlyHint": true,
         "destructiveHint": false,
@@ -607,7 +607,7 @@
     {
       "name": "list_studies",
       "title": "List studies",
-      "description": "List studies on this account, including study_id, interview_link, and trigger_eligible. trigger_eligible is false when the study has no interview link. Does not create or edit a study.",
+      "description": "List studies on this account. Returns study_id, interview_link, interview_mode, and trigger_eligible for each study. trigger_eligible is false when the study has no interview link. Does not create or edit a study.",
       "annotations": {
         "readOnlyHint": true,
         "destructiveHint": false,
@@ -623,7 +623,7 @@
     {
       "name": "create_research_trigger",
       "title": "Create a research trigger",
-      "description": "Create a paused research trigger that can invite people after an observed product event. Returns activation_url. The trigger stays paused until a person opens that URL. This tool cannot activate the trigger or send the invite. Unsupported filters are rejected.",
+      "description": "Create a paused research trigger that invites people after an observed product event. Returns activation_url. Created with status paused; a person opens activation_url to activate. delivery_method defaults to intercept. webhook posts each match to webhook_url. Unsupported filters are rejected. This tool cannot activate the trigger or send the invite.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": false,
@@ -641,7 +641,7 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 120,
-            "description": "Observed event name for this account."
+            "description": "Observed event name for this account, from the last 30 days."
           },
           "properties": {
             "type": "object",
@@ -754,7 +754,7 @@
             "type": "string",
             "minLength": 16,
             "maxLength": 200,
-            "description": "Optional HMAC secret. Requests carry x-usercall-signature. Write-only and omitted from responses."
+            "description": "Optional HMAC secret. Requests carry x-usercall-signature. Write-only: never returned."
           },
           "invite_link_params": {
             "type": "object",
@@ -793,7 +793,7 @@
     {
       "name": "list_research_triggers",
       "title": "List research triggers",
-      "description": "List research triggers with status and activation_url. activation_url is present while a trigger is paused and empty after a person activates it. Does not change a trigger and cannot activate one.",
+      "description": "List research triggers. Returns status and activation_url for each. activation_url is present while a trigger is paused and empty after a person activates it. Does not change a trigger and cannot activate one.",
       "annotations": {
         "readOnlyHint": true,
         "destructiveHint": false,
@@ -809,7 +809,7 @@
     {
       "name": "get_research_trigger",
       "title": "Get a research trigger",
-      "description": "Read one research trigger by trigger_id, including status, targeting, and activation_url. activation_url is present while the trigger is paused. Does not change the trigger, cannot activate it, and does not return interview findings.",
+      "description": "Read one research trigger by trigger_id. Returns status, targeting, activation_url, and invite and interview counts. activation_url is present while the trigger is paused. Does not change the trigger, cannot activate it, and does not return interview findings.",
       "annotations": {
         "readOnlyHint": true,
         "destructiveHint": false,
@@ -833,7 +833,7 @@
     {
       "name": "update_research_trigger",
       "title": "Update a research trigger",
-      "description": "Edit a research trigger's targeting, sampling, cooldown, daily cap, intercept copy, or delivery. status paused pauses the trigger. status active is rejected with HTTP 409 and activation_url; a person opens that URL to activate. Editing an active trigger pauses it until a person approves it again. Does not activate a trigger.",
+      "description": "Edit a research trigger's targeting, sampling, cooldown, daily cap, intercept copy, or delivery. Returns the updated trigger. status paused pauses it. status active is rejected with HTTP 409 and activation_url; a person opens that URL to activate. Editing an active trigger pauses it until a person approves it again. Does not activate a trigger.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": false,
@@ -850,7 +850,7 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 120,
-            "description": "Observed event name for this account."
+            "description": "Observed event name for this account, from the last 30 days."
           },
           "properties": {
             "anyOf": [
@@ -1004,7 +1004,7 @@
                 "type": "null"
               }
             ],
-            "description": "Optional HMAC secret. Requests carry x-usercall-signature. Write-only and omitted from responses. null removes it."
+            "description": "Optional HMAC secret. Requests carry x-usercall-signature. Write-only: never returned. null removes it."
           },
           "invite_link_params": {
             "type": "object",
@@ -1050,7 +1050,7 @@
     {
       "name": "delete_research_trigger",
       "title": "Delete a research trigger",
-      "description": "Permanently delete a research trigger. Interviews already completed are kept. Cannot be undone. Does not delete the study. Pausing a trigger stops new invites and keeps the trigger.",
+      "description": "Permanently delete a research trigger. Interviews already completed are kept. Cannot be undone. Does not delete the study. A paused trigger stops new invites and keeps the trigger.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": true,

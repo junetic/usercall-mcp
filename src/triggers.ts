@@ -47,7 +47,7 @@ const targetingShape = {
     .trim()
     .min(1)
     .max(120)
-    .describe("Observed event name for this account."),
+    .describe("Observed event name for this account, from the last 30 days."),
   properties: filterMap
     .optional()
     .describe(
@@ -131,7 +131,7 @@ const configShape = {
     .max(200)
     .optional()
     .describe(
-      "Optional HMAC secret. Requests carry x-usercall-signature. Write-only and omitted from responses.",
+      "Optional HMAC secret. Requests carry x-usercall-signature. Write-only: never returned.",
     ),
   invite_link_params: z
     .object({
@@ -195,7 +195,7 @@ export const TRIGGER_TOOL_INPUT_SCHEMAS = {
         .nullable()
         .optional()
         .describe(
-          "Optional HMAC secret. Requests carry x-usercall-signature. Write-only and omitted from responses. null removes it.",
+          "Optional HMAC secret. Requests carry x-usercall-signature. Write-only: never returned. null removes it.",
         ),
       status: z
         .enum(["active", "paused"])
@@ -237,28 +237,28 @@ export const TRIGGER_TOOL_CATALOG: TriggerToolMeta[] = [
     name: "get_trigger_capabilities",
     title: "Get trigger capabilities",
     description:
-      "List Research Trigger conditions available on this account. Supported: one event, an exact property or trait match, a URL rule, and page dwell. Unsupported: counts, sequences, absence, time windows, and not-equals. Does not create a trigger.",
+      "List Research Trigger conditions on this account. Returns supported and unsupported condition kinds. Supported: one event, an exact property or trait match, a URL rule, and page dwell. Unsupported: counts, sequences, absence, time windows, and not-equals. Does not create a trigger.",
     annotations: readOnly,
   },
   {
     name: "get_trigger_sdk_setup",
     title: "Get trigger SDK setup",
     description:
-      "Return the Usercall SDK install snippet, an identify snippet, and install status for sending product events into Usercall. The response does not include secret keys. Does not create a trigger.",
+      "Return install_snippet, identify_snippet, allowlist_update_snippet, and install status for sending product events into Usercall. provider defaults to posthog. events names the allowlist. The response does not include secret keys. Does not create a trigger.",
     annotations: readOnly,
   },
   {
     name: "list_trigger_events",
     title: "List trigger events",
     description:
-      "List event names Usercall has received for this account in the last 30 days. A research trigger can use only an observed event name. Does not create a trigger.",
+      "List event names Usercall has received for this account in the last 30 days. Returns those names. A research trigger accepts only an observed event name. An empty list means no events have arrived. Does not create a trigger.",
     annotations: readOnly,
   },
   {
     name: "get_trigger_event_schema",
     title: "Get trigger event schema",
     description:
-      "Read observed properties and traits for one event, including types and sample values. Property and trait filters are exact matches and are case-sensitive and type-sensitive. Does not create a trigger.",
+      "Read observed properties and traits for one event. Returns each field's type and sample values. Filters are exact matches and are case-sensitive and type-sensitive. Values that were not observed are absent. Does not create a trigger.",
     annotations: readOnly,
   },
   // list_studies is registered with the trigger tools, matching the hosted catalog.
@@ -266,42 +266,42 @@ export const TRIGGER_TOOL_CATALOG: TriggerToolMeta[] = [
     name: "list_studies",
     title: "List studies",
     description:
-      "List studies on this account, including study_id, interview_link, and trigger_eligible. trigger_eligible is false when the study has no interview link. Does not create or edit a study.",
+      "List studies on this account. Returns study_id, interview_link, interview_mode, and trigger_eligible for each study. trigger_eligible is false when the study has no interview link. Does not create or edit a study.",
     annotations: readOnly,
   },
   {
     name: "create_research_trigger",
     title: "Create a research trigger",
     description:
-      "Create a paused research trigger that can invite people after an observed product event. Returns activation_url. The trigger stays paused until a person opens that URL. This tool cannot activate the trigger or send the invite. Unsupported filters are rejected.",
+      "Create a paused research trigger that invites people after an observed product event. Returns activation_url. Created with status paused; a person opens activation_url to activate. delivery_method defaults to intercept. webhook posts each match to webhook_url. Unsupported filters are rejected. This tool cannot activate the trigger or send the invite.",
     annotations: write,
   },
   {
     name: "list_research_triggers",
     title: "List research triggers",
     description:
-      "List research triggers with status and activation_url. activation_url is present while a trigger is paused and empty after a person activates it. Does not change a trigger and cannot activate one.",
+      "List research triggers. Returns status and activation_url for each. activation_url is present while a trigger is paused and empty after a person activates it. Does not change a trigger and cannot activate one.",
     annotations: readOnly,
   },
   {
     name: "get_research_trigger",
     title: "Get a research trigger",
     description:
-      "Read one research trigger by trigger_id, including status, targeting, and activation_url. activation_url is present while the trigger is paused. Does not change the trigger, cannot activate it, and does not return interview findings.",
+      "Read one research trigger by trigger_id. Returns status, targeting, activation_url, and invite and interview counts. activation_url is present while the trigger is paused. Does not change the trigger, cannot activate it, and does not return interview findings.",
     annotations: readOnly,
   },
   {
     name: "update_research_trigger",
     title: "Update a research trigger",
     description:
-      "Edit a research trigger's targeting, sampling, cooldown, daily cap, intercept copy, or delivery. status paused pauses the trigger. status active is rejected with HTTP 409 and activation_url; a person opens that URL to activate. Editing an active trigger pauses it until a person approves it again. Does not activate a trigger.",
+      "Edit a research trigger's targeting, sampling, cooldown, daily cap, intercept copy, or delivery. Returns the updated trigger. status paused pauses it. status active is rejected with HTTP 409 and activation_url; a person opens that URL to activate. Editing an active trigger pauses it until a person approves it again. Does not activate a trigger.",
     annotations: write,
   },
   {
     name: "delete_research_trigger",
     title: "Delete a research trigger",
     description:
-      "Permanently delete a research trigger. Interviews already completed are kept. Cannot be undone. Does not delete the study. Pausing a trigger stops new invites and keeps the trigger.",
+      "Permanently delete a research trigger. Interviews already completed are kept. Cannot be undone. Does not delete the study. A paused trigger stops new invites and keeps the trigger.",
     annotations: { ...write, destructiveHint: true },
   },
 ];
