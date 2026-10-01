@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Tool descriptions, parameter descriptions, and initialize instructions name the research job (churn, onboarding drop-off, failed actions, product assumptions, themes, quotes) and the limits. The first ~512 characters of initialize instructions are that category language plus product facts. Workflow order stays in `skills/run-user-interviews/SKILL.md`.
+- Removed the cross-tool order that was written so OpenAI tool search would read a fixed interview sequence from server instructions and from each tool description.
+
 ## 0.4.0
 
 - Official MCP Registry metadata: `mcpName` `co.usercall/mcp` and root `server.json`

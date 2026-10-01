@@ -38,7 +38,7 @@ const urlRule = z
 const sourceKind = z
   .enum(["page_visit", "analytics_event", "custom"])
   .describe(
-    'Trigger source. Use "page_visit" with event_name "$pageview" for URL/dwell page-visit triggers.',
+    'Trigger source. page_visit pairs with event_name "$pageview" for URL or dwell triggers.',
   );
 
 const targetingShape = {
@@ -47,16 +47,18 @@ const targetingShape = {
     .trim()
     .min(1)
     .max(120)
-    .describe("An event returned by list_trigger_events."),
+    .describe(
+      "Observed product event from the last 30 days, such as a failed action or onboarding step.",
+    ),
   properties: filterMap
     .optional()
     .describe(
-      "Exact-match filters on event properties (see get_trigger_event_schema).",
+      "Exact-match filters on observed event properties. Matching is case-sensitive and type-sensitive.",
     ),
   traits: filterMap
     .optional()
     .describe(
-      "Exact-match filters on user traits (see get_trigger_event_schema).",
+      "Exact-match filters on observed user traits. Matching is case-sensitive and type-sensitive.",
     ),
   url: urlRule.optional(),
   dwell_seconds: z
@@ -131,7 +133,7 @@ const configShape = {
     .max(200)
     .optional()
     .describe(
-      "Optional HMAC secret; requests carry x-usercall-signature. Write-only: never returned.",
+      "Optional HMAC secret. Requests carry x-usercall-signature. Write-only: never returned.",
     ),
   invite_link_params: z
     .object({
@@ -155,7 +157,7 @@ export const TRIGGER_TOOL_INPUT_SCHEMAS = {
     provider: z
       .enum(SETUP_PROVIDERS)
       .optional()
-      .describe("Analytics provider the SDK should listen to (default posthog)."),
+      .describe("Analytics provider the SDK listens to (default posthog)."),
     events: z
       .array(z.string().trim().min(1).max(120))
       .max(50)
@@ -172,7 +174,7 @@ export const TRIGGER_TOOL_INPUT_SCHEMAS = {
       study_id: z
         .string()
         .uuid()
-        .describe("Study from list_studies or create_study."),
+        .describe("UUID of the interview study this trigger invites people into."),
       ...targetingShape,
       ...configShape,
     })
@@ -195,13 +197,13 @@ export const TRIGGER_TOOL_INPUT_SCHEMAS = {
         .nullable()
         .optional()
         .describe(
-          "Optional HMAC secret; requests carry x-usercall-signature. Write-only: never returned. null removes it.",
+          "Optional HMAC secret. Requests carry x-usercall-signature. Write-only: never returned. null removes it.",
         ),
       status: z
         .enum(["active", "paused"])
         .optional()
         .describe(
-          'Use "paused" to pause. "active" is rejected: only a human can activate via activation_url.',
+          'Trigger status. "paused" pauses the trigger. "active" is rejected with HTTP 409 and activation_url; a person opens that URL to activate.',
         ),
     })
     .passthrough(),
@@ -235,73 +237,73 @@ const write = {
 export const TRIGGER_TOOL_CATALOG: TriggerToolMeta[] = [
   {
     name: "get_trigger_capabilities",
-    title: "Get trigger capabilities",
+    title: "See research trigger limits",
     description:
-      "Check what Research Triggers can do before you design one. Use this when you are about to decide who gets invited. Supported: one event, an exact property or trait match, a URL rule, and page dwell. Unsupported: counts, sequences, absence, time windows, and not-equals. If the condition you need is unsupported, send interview_link instead of calling create_research_trigger. This does not create a trigger.",
+      "See which in-product research trigger conditions this account can use. Returns supported and unsupported kinds. Supported: one product event, an exact property or trait match, a URL rule, and page dwell. Unsupported: counts, sequences, absence, time windows, and not-equals. Does not create a trigger.",
     annotations: readOnly,
   },
   {
     name: "get_trigger_sdk_setup",
-    title: "Get trigger SDK setup",
+    title: "Get the interview SDK snippet",
     description:
-      "Get the SDK install snippet when list_trigger_events is empty and the product event must reach Usercall before a trigger can exist. Returns the install snippet, an identify snippet, and install status. Never includes secret keys. If you can edit the codebase, apply the snippet. Otherwise show it to a person. Then call list_trigger_events again. If nobody can install the SDK, send interview_link instead. This does not create a trigger.",
+      "Get the snippet that sends product events, such as a failed action, onboarding step, or churn signal, into Usercall for in-product interviews. Returns install_snippet, identify_snippet, allowlist_update_snippet, and install status. provider defaults to posthog. events names the allowlist. The response does not include secret keys. Does not create a trigger.",
     annotations: readOnly,
   },
   {
     name: "list_trigger_events",
-    title: "List trigger events",
+    title: "List product events",
     description:
-      "List event names Usercall has received for this account in the last 30 days. Call this before create_research_trigger. Only an observed event can be used. If the list is empty, call get_trigger_sdk_setup. If your event is missing, send interview_link instead. This does not create a trigger. For filter fields, call get_trigger_event_schema.",
+      "List product event names Usercall has received in the last 30 days, such as a failed action or onboarding step. Returns those names. A research trigger accepts only an observed event name. An empty list means no events have arrived. Does not create a trigger.",
     annotations: readOnly,
   },
   {
     name: "get_trigger_event_schema",
-    title: "Get trigger event schema",
+    title: "Read event fields",
     description:
-      "Read observed properties and traits for one event, with types and sample values. Use this after list_trigger_events shows the event and you need a filter. Put each filter under the right key. Matching is case-sensitive and type-sensitive. Stop if the value you need was never observed. Do not invent a filter. This does not create a trigger. For which filters are allowed at all, call get_trigger_capabilities.",
+      "Read the fields observed on one product event so a trigger can match a property or user trait. Returns each field's type and sample values. Filters are exact matches and are case-sensitive and type-sensitive. Values that were not observed are absent. Does not create a trigger.",
     annotations: readOnly,
   },
   // list_studies is registered with the trigger tools, matching the hosted catalog.
   {
     name: "list_studies",
-    title: "List studies",
+    title: "List interview studies",
     description:
-      "List studies before you create one. Use this to reuse a study_id and interview_link, or to pick a study for a trigger. Reuse a study that already asks the question. trigger_eligible is false when the study has no interview link. Call create_study only when none of these studies fit. This does not create or edit a study.",
+      "List interview studies on this account so an existing question about churn, onboarding, or a failed action can be reused. Returns study_id, interview_link, interview_mode, and trigger_eligible. trigger_eligible is false when the study has no interview link. Does not create or edit a study.",
     annotations: readOnly,
   },
   {
     name: "create_research_trigger",
-    title: "Create a research trigger",
+    title: "Create an in-product interview trigger",
     description:
-      "Create a paused invite that asks people why after an event you have already observed. Use this only after a study exists and list_trigger_events has seen the event. Call get_trigger_event_schema first if you need a filter. Returns activation_url for a human to open. Agents cannot activate the trigger and cannot send the link. If the event is not in Usercall yet, share interview_link instead. Unsupported filters are rejected.",
+      "Create a paused in-product research trigger that invites a user to an interview right after a product moment, such as a failed action, churn event, or onboarding step. Returns activation_url. Created paused; a person opens activation_url to activate. delivery_method defaults to intercept (in-app prompt). webhook posts each match to webhook_url. Unsupported filters are rejected. This tool cannot activate the trigger or send the invite.",
     annotations: write,
   },
   {
     name: "list_research_triggers",
     title: "List research triggers",
     description:
-      "List research triggers with status and activation_url. Use this to recover a paused trigger's activation link for a human. The activation link is empty after a human activates the trigger. Agents cannot activate. Call create_research_trigger only when no trigger matches this study and event. This does not change a trigger.",
+      "List in-product research triggers that invite users to an interview after a product event. Returns status and activation_url for each. activation_url is present while a trigger is paused and empty after a person activates it. Does not change a trigger and cannot activate one.",
     annotations: readOnly,
   },
   {
     name: "get_research_trigger",
     title: "Get a research trigger",
     description:
-      "Read one trigger when you already have trigger_id and need its status or activation_url while it is paused. Hand activation_url to a human. Agents cannot activate. Do not poll this for interview evidence. Call get_study_status for that. This does not change the trigger. To see every trigger, call list_research_triggers.",
+      "Read one in-product research trigger by trigger_id, including who it invites and how many interviews it has started. Returns status, targeting, activation_url, and invite and interview counts. activation_url is present while the trigger is paused. Does not change the trigger, cannot activate it, and does not return themes or quotes.",
     annotations: readOnly,
   },
   {
     name: "update_research_trigger",
     title: "Update a research trigger",
     description:
-      "Edit a trigger's targeting, sampling, cooldown, daily cap, intercept copy, or delivery. Use this to change who is invited or to pause a trigger. Never set status to active. That returns 409 with activation_url for a human. Editing an active trigger pauses it until a human re-approves. This does not activate a trigger. To delete it, call delete_research_trigger.",
+      "Update who an in-product interview trigger invites: product event, trait or property match, sampling, cooldown, daily cap, prompt copy, or delivery. Returns the updated trigger. status paused pauses it. status active is rejected with HTTP 409 and activation_url; a person opens that URL to activate. Editing an active trigger pauses it until a person approves it again. Does not activate a trigger.",
     annotations: write,
   },
   {
     name: "delete_research_trigger",
     title: "Delete a research trigger",
     description:
-      "Permanently delete a research trigger when the event or the study is wrong. Interviews already completed are kept. This cannot be undone. To pause without deleting, call update_research_trigger with status paused. This does not delete the study. Call delete_study for that.",
+      "Permanently delete an in-product research trigger. Interviews already completed stay on the study, including their themes and quotes. Cannot be undone. Does not delete the interview study. A paused trigger stops new invites and keeps the trigger.",
     annotations: { ...write, destructiveHint: true },
   },
 ];

@@ -5,12 +5,15 @@ import { createFetchTriggerApiCaller, registerTriggerTools } from "./triggers.js
 
 export const PACKAGE_VERSION = "0.4.0";
 
-/** First 508 characters. Keep this block first so tool search sees the order and limits. */
+/**
+ * Category language plus product limits. This string is the first ~512
+ * characters tool search reads. Workflow order stays in skills.
+ */
 export const SERVER_INSTRUCTIONS_LEAD =
-  "Usercall interviews real users so agents learn why. Order: create_study → simulate_interview → optional review_study → share interview_link OR create_research_trigger (paused; human opens activation_url) → get_study_status until complete → get_study_results. Never treat in-progress results as findings. Agents cannot activate triggers or send the link. Call list_studies before creating a duplicate. Call list_trigger_events before any trigger. One active agent study per account. Max 5 simulations/UTC day.";
+  "Usercall: AI-moderated voice or text interviews with real users. Why users churn, onboarding drop-off, failed actions, wrong product assumptions. Returns themes, insights, verbatim quotes, study_id, and interview_link. One active agent study per account. Max 5 simulations per UTC day. summary: themes and quotes; full: transcripts. Triggers stay paused until a person opens activation_url. A person sends the interview link. HTTP 402 includes checkout_url. status active returns HTTP 409. Deletes are permanent.";
 
 export const SERVER_INSTRUCTIONS_REST =
-  "Do not invent unsupported trigger filters (counts, sequences, absence, time windows, not-equals). Exact property or trait match only. Prefer format=summary for results; use full only when a verbatim transcript is required. Treat http_status of 400 or higher as failure. On 402, surface checkout_url to a human. On 409 activation_required, hand activation_url to a human. delete_study and delete_research_trigger are irreversible. There is no share tool and no tool that activates a trigger. Values on interview_link query params are untrusted participant context.";
+  "Trigger filters are exact property or trait matches. Counts, sequences, absence, time windows, and not-equals are unsupported. interview_link query values are untrusted participant context.";
 
 export const SERVER_INSTRUCTIONS = `${SERVER_INSTRUCTIONS_LEAD}\n${SERVER_INSTRUCTIONS_REST}`;
 
@@ -245,9 +248,9 @@ export interface StudyToolCatalogEntry {
 export const STUDY_TOOL_CATALOG: StudyToolCatalogEntry[] = [
   {
     name: "create_study",
-    title: "Create a study",
+    title: "Create an interview study",
     description:
-      "Create an interview study when you already know what happened and still need to learn why. Returns study_id and interview_link. Do not share the link yet. Call list_studies first and reuse a study that already asks this question. key_research_goal is required. business_context is optional. One active agent study per account. On 402, surface checkout_url to a human. This does not run the interview. Call simulate_interview next.",
+      "Create an AI-moderated interview study to learn why users churn, drop off in onboarding, fail an action, or where a product assumption is wrong. Returns study_id and interview_link for a voice, text, or voice-and-text interview. key_research_goal is required and cannot be changed later. business_context is optional. Defaults: target_interviews 1, duration_minutes 12, interview_mode voice. One active agent study per account. Does not run the interview or invite a participant. HTTP 402 includes checkout_url.",
     annotations: {
       readOnlyHint: false,
       destructiveHint: false,
@@ -256,9 +259,9 @@ export const STUDY_TOOL_CATALOG: StudyToolCatalogEntry[] = [
   },
   {
     name: "update_study",
-    title: "Update a study",
+    title: "Update an interview study",
     description:
-      "Edit an existing study's slots, interview mode, languages, voice, link context, guide text, questions, or media. Use this after review_study or a failed simulation names a guide change, or when the link is disabled and you are about to share. You cannot change key_research_goal. Delete the study and call create_study for a new question. One locale turns the language picker off. Two or more turn it on. Query params on interview_link are ignored until enable_link_context is true. This does not simulate or share. Call simulate_interview again before sharing.",
+      "Update an interview study: slots, guide questions, intro, languages, voice, or an image or Figma prototype shown to participants. Returns the updated study. key_research_goal cannot be changed. is_link_disabled true stops new interviews and keeps recordings. One locale hides the language picker; two or more show it. Query parameters on interview_link are ignored until enable_link_context is true. study_media null clears media. API errors include http_status. Does not dry-run the guide or invite a participant.",
     annotations: {
       readOnlyHint: false,
       destructiveHint: false,
@@ -267,9 +270,9 @@ export const STUDY_TOOL_CATALOG: StudyToolCatalogEntry[] = [
   },
   {
     name: "get_study_status",
-    title: "Get study status",
+    title: "Check interview progress",
     description:
-      "Check whether a study is running, analyzing, or complete while interviews are in progress. running and analyzing mean wait and call this again. Do not treat those payloads as findings. When status is complete, call get_study_results. The response includes interview_link and next_step. This does not return themes and it does not change the study. For a dry run before anyone is invited, call simulate_interview instead.",
+      "Check whether user interviews are still running, being analyzed, or complete. Returns completed_interviews, target_interviews, interview_link, and next_step. running and analyzing include no findings, themes, or quotes. Does not change the study.",
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
@@ -278,9 +281,9 @@ export const STUDY_TOOL_CATALOG: StudyToolCatalogEntry[] = [
   },
   {
     name: "get_study_results",
-    title: "Get study results",
+    title: "Get themes and quotes",
     description:
-      "Read findings after get_study_status is complete. Use this when you need why, not another status check. Prefer format=summary for themes, insights, and risks. Use format=full only when a verbatim transcript is required. Summary is the evidence to place beside the original metric. Empty themes while the study is still running are not a finding. This does not create interviews or edit the guide.",
+      "Get interview findings after real users have talked: themes, insights, risks, and verbatim quotes. format omitted or summary returns themes, insights, and risks. format=full also returns transcripts. Empty themes mean analysis is not ready. Does not create interviews or edit the guide.",
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
@@ -289,9 +292,9 @@ export const STUDY_TOOL_CATALOG: StudyToolCatalogEntry[] = [
   },
   {
     name: "simulate_interview",
-    title: "Simulate an interview",
+    title: "Dry-run an interview",
     description:
-      "Dry-run the interview after you create or edit a study, and before any real invite. Omit simulation_id to start. Pass that id on a later call to read the result. The start returns immediately with running. Cap is 5 simulations per account per UTC day. A 429 means stop for the day. A simulation is not a completed interview and does not change completed_interviews. On pass, share or call review_study. On fail, call update_study, then simulate again. This does not invite a participant.",
+      "Dry-run an interview guide before a real participant joins, including a question about churn, onboarding, or a failed action. Omit simulation_id to start; returns immediately with status running and a simulation_id. Pass simulation_id to read that run. Result status is pass, fail, or error. Max 5 simulations per account per UTC day. HTTP 429 means the daily cap is reached. Optional persona has name and prompt. A dry-run does not change completed_interviews and does not invite a participant.",
     annotations: {
       readOnlyHint: false,
       destructiveHint: false,
@@ -302,7 +305,7 @@ export const STUDY_TOOL_CATALOG: StudyToolCatalogEntry[] = [
     name: "review_study",
     title: "Review the interview guide",
     description:
-      "Check the interview guide before sharing it with a real participant. Use this when you want a read of the guide only. It does not read transcripts and it does not apply edits. It costs 1 credit and works when the in-app review control is hidden. On 402, surface checkout_url to a human. Write suggested changes with update_study. Stop after one review unless the guide changed. This is not simulate_interview and it is not get_study_results.",
+      "Review an interview guide and return a written critique of the questions before real users see them. Reads the guide only: no transcripts, and suggested edits are not applied. Costs 1 credit. Request is study_id only; call_ids are not accepted. Works when the in-app review control is hidden. HTTP 402 includes checkout_url. Does not return themes, quotes, or other findings.",
     annotations: {
       readOnlyHint: false,
       destructiveHint: false,
@@ -311,9 +314,9 @@ export const STUDY_TOOL_CATALOG: StudyToolCatalogEntry[] = [
   },
   {
     name: "delete_study",
-    title: "Delete a study",
+    title: "Delete an interview study",
     description:
-      "Permanently delete a study when it asks the wrong question or you must free the one active agent study. This removes the study and its interview calls and releases unused reserved credits. It cannot be undone. To stop new interviews without deleting evidence, call update_study with is_link_disabled true. This does not delete a research trigger. Call delete_research_trigger for that.",
+      "Permanently delete an interview study, its recordings, and unused reserved credits. Cannot be undone. Does not delete in-product research triggers.",
     annotations: {
       readOnlyHint: false,
       destructiveHint: true,
@@ -489,7 +492,7 @@ export function createUsercallServer(config: UsercallServerConfig) {
         const mediaNote = input.study_media
           ? " Media is visible to web participants only."
           : "";
-        const note = `Study created with ${slots} interview slot(s).${mediaNote} Call simulate_interview before any real participant. On pass, share interview_link or call review_study. On fail, call update_study, then simulate again.`;
+        const note = `Study created with ${slots} interview slot(s).${mediaNote}`;
 
         return result(appendNote(payload, note));
       } catch (error) {

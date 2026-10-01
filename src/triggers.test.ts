@@ -81,7 +81,7 @@ test("create/update descriptions state that a person must open activation_url", 
   const update = TRIGGER_TOOL_CATALOG.find((entry) => entry.name === "update_research_trigger");
   assert.match(create?.description ?? "", /cannot activate/);
   assert.match(create?.description ?? "", /activation_url/);
-  assert.match(update?.description ?? "", /Never set status to active/);
+  assert.match(update?.description ?? "", /status active is rejected/);
   assert.match(update?.description ?? "", /409/);
   assert.match(update?.description ?? "", /activation_url/);
 });
@@ -341,9 +341,28 @@ test("the stdio server registers every study and trigger tool", async () => {
   const client = await connectStudyServer(async () => new Response("{}"));
 
   const instructions = client.getInstructions();
-  assert.equal(SERVER_INSTRUCTIONS_LEAD.length, 508);
-  assert.equal(instructions?.slice(0, 508), SERVER_INSTRUCTIONS_LEAD);
   assert.equal(instructions, SERVER_INSTRUCTIONS);
+  assert.ok(SERVER_INSTRUCTIONS_LEAD.length >= 400);
+  assert.ok(SERVER_INSTRUCTIONS_LEAD.length <= 512);
+  assert.equal(instructions?.slice(0, SERVER_INSTRUCTIONS_LEAD.length), SERVER_INSTRUCTIONS_LEAD);
+  const toolSearchWindow = instructions?.slice(0, 512) ?? "";
+  assert.equal(toolSearchWindow.startsWith(SERVER_INSTRUCTIONS_LEAD), true);
+  assert.match(toolSearchWindow.slice(SERVER_INSTRUCTIONS_LEAD.length), /^\s*$/);
+  for (const fact of [
+    "voice",
+    "text",
+    "churn",
+    "onboarding",
+    "quotes",
+    "activation_url",
+    "checkout_url",
+    "409",
+    "summary",
+    "agent study",
+    "interview_link",
+  ]) {
+    assert.match(SERVER_INSTRUCTIONS_LEAD, new RegExp(fact));
+  }
 
   const { tools } = await client.listTools();
   assert.equal(tools.length, 17);
@@ -364,6 +383,101 @@ test("the stdio server registers every study and trigger tool", async () => {
     );
     assert.equal(tool?.annotations?.openWorldHint, false, expected.name);
   }
+});
+
+function collectSchemaDescriptions(value: unknown, found: string[]) {
+  if (!value || typeof value !== "object") return;
+  if (Array.isArray(value)) {
+    for (const item of value) collectSchemaDescriptions(item, found);
+    return;
+  }
+  const record = value as Record<string, unknown>;
+  if (typeof record.description === "string") found.push(record.description);
+  for (const nested of Object.values(record)) collectSchemaDescriptions(nested, found);
+}
+
+/** Cross-tool orchestration and direct commands to the model. Job language is allowed. */
+const ORCHESTRATION_PATTERNS = [
+  /\bcall\s+(?:this|that|again|next|first|instead)\b/i,
+  /\b(?:then|next)\s+call\b/i,
+  /\b(?:do not|don't)\b/i,
+  /\bnever\s+(?:call|set|share|treat|invent|poll|try|activate|send)\b/i,
+  /\b(?:you must|you should)\b/i,
+  /\bagents?\s+(?:cannot|must|should|can|do)\b/i,
+  /\bprefer\s+(?:format|to\s+call)\b/i,
+  /\bhand\s+\S+\s+to\b/i,
+  /\bsurface\s+\S+\s+to\b/i,
+];
+
+function orchestrationHits(snippet: string, toolNames: string[]) {
+  const hits: string[] = [];
+  for (const pattern of ORCHESTRATION_PATTERNS) {
+    const match = snippet.match(pattern);
+    if (match?.[0]) hits.push(match[0]);
+  }
+  for (const name of toolNames) {
+    if (new RegExp(`\\b${name}\\b`).test(snippet)) hits.push(name);
+  }
+  return hits;
+}
+
+test("MCP copy describes each tool without model-behavior or cross-tool instructions", async () => {
+  const toolNames = [...STUDY_TOOL_CATALOG, ...TRIGGER_TOOL_CATALOG].map((tool) => tool.name);
+  for (const allowed of [
+    "callback",
+    "Usercall interviews real users",
+    "a phone call with a participant",
+    "call_ids are not accepted",
+    "Write-only: never returned.",
+    "One active agent study per account.",
+    "Does not invite a participant.",
+    "x-usercall-signature",
+    "Use this to learn why users churn",
+    "Use this when you need themes, insights, and quotes",
+    "onboarding drop-off and failed actions",
+    "themes, insights, and verbatim quotes",
+    "users who prefer voice",
+  ]) {
+    assert.deepEqual(orchestrationHits(allowed, toolNames), [], allowed);
+  }
+  for (const blocked of [
+    "Call list_studies first",
+    "then call update_study",
+    "use this when you need why, then call get_study_results",
+    "Do not share the link yet",
+    "Never set status to active",
+    "Prefer format=summary",
+    "Agents cannot activate",
+    "see get_trigger_event_schema",
+    "call again with that id",
+  ]) {
+    assert.ok(orchestrationHits(blocked, toolNames).length > 0, blocked);
+  }
+
+  const client = await connectStudyServer(async () => new Response("{}"));
+  const { tools } = await client.listTools();
+  const snippets = [client.getInstructions() ?? ""];
+  for (const tool of tools) {
+    snippets.push(tool.title ?? "", tool.description ?? "");
+    collectSchemaDescriptions(tool.inputSchema, snippets);
+  }
+
+  const hidden = /[\u200B-\u200F\u202A-\u202E\u2060-\u2064\uFEFF]/;
+  for (const snippet of snippets) {
+    assert.equal(hidden.test(snippet), false, snippet);
+    assert.deepEqual(orchestrationHits(snippet, toolNames), [], snippet);
+  }
+});
+
+test("the interview skill keeps create, simulate, then review", () => {
+  const skill = readFileSync(
+    new URL("../skills/run-user-interviews/SKILL.md", import.meta.url),
+    "utf8",
+  );
+  const createAt = skill.indexOf("`create_study`");
+  const simulateAt = skill.indexOf("`simulate_interview`");
+  const reviewAt = skill.indexOf("`review_study`");
+  assert.ok(createAt >= 0 && simulateAt > createAt && reviewAt > simulateAt);
 });
 
 test("fixtures/tools-list.json matches initialize instructions and listTools", async () => {
@@ -430,8 +544,11 @@ test("key_research_goal alone still creates a study", async () => {
   assert.equal(seen?.url, "https://app.usercall.test/api/v1/agent/studies");
   assert.deepEqual(JSON.parse(seen?.body ?? "{}"), { key_research_goal: goal });
   const note = JSON.parse(result.content[0]?.text ?? "{}")._note as string;
-  assert.match(note, /Call simulate_interview before any real participant/);
-  assert.doesNotMatch(note, /Share the interview_link with participants/);
+  assert.match(note, /Study created with 1 interview slot/);
+  assert.deepEqual(
+    orchestrationHits(note, ["simulate_interview", "review_study", "update_study", "list_studies"]),
+    [],
+  );
 });
 
 test("update_study forwards workflow question objects", async () => {
