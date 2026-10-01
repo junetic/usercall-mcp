@@ -1,0 +1,21 @@
+{
+  "name": "usercall",
+  "displayName": "Usercall: User Interviews",
+  "version": "1.0.3",
+  "description": "AI-moderated user interviews and qualitative research to understand why users behave the way they do. Investigate churn, onboarding drop-off, failed actions, unusual product behavior, customer feedback, or important product assumptions. Create interview studies, prepare guides, and retrieve evidence-backed themes with verbatim quotes.",
+  "author": {
+    "name": "Usercall",
+    "email": "contact@usercall.co",
+    "url": "https://www.usercall.co"
+  },
+  "homepage": "https://www.usercall.co",
+  "repository": "https://github.com/junetic/usercall-mcp",
+  "license": "MIT",
+  "keywords": [
+    "user-research",
+    "interviews",
+    "qualitative",
+    "product",
+    "usercall"
+  ]
+}

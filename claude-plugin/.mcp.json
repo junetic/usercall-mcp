@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "usercall": {
+      "type": "http",
+      "url": "https://mcp.usercall.co"
+    }
+  }
+}
