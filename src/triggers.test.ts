@@ -9,7 +9,6 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import {
   PACKAGE_VERSION,
   SERVER_INSTRUCTIONS,
-  SERVER_INSTRUCTIONS_LEAD,
   STUDY_TOOL_CATALOG,
   STUDY_TOOL_INPUT_SCHEMAS,
   createUsercallServer,
@@ -81,7 +80,7 @@ test("create/update descriptions state that a person must open activation_url", 
   const update = TRIGGER_TOOL_CATALOG.find((entry) => entry.name === "update_research_trigger");
   assert.match(create?.description ?? "", /cannot activate/);
   assert.match(create?.description ?? "", /activation_url/);
-  assert.match(update?.description ?? "", /Never set status to active/);
+  assert.match(update?.description ?? "", /status active is rejected/);
   assert.match(update?.description ?? "", /409/);
   assert.match(update?.description ?? "", /activation_url/);
 });
@@ -341,8 +340,6 @@ test("the stdio server registers every study and trigger tool", async () => {
   const client = await connectStudyServer(async () => new Response("{}"));
 
   const instructions = client.getInstructions();
-  assert.equal(SERVER_INSTRUCTIONS_LEAD.length, 508);
-  assert.equal(instructions?.slice(0, 508), SERVER_INSTRUCTIONS_LEAD);
   assert.equal(instructions, SERVER_INSTRUCTIONS);
 
   const { tools } = await client.listTools();
@@ -363,6 +360,40 @@ test("the stdio server registers every study and trigger tool", async () => {
       expected.name,
     );
     assert.equal(tool?.annotations?.openWorldHint, false, expected.name);
+  }
+});
+
+function collectSchemaDescriptions(value: unknown, found: string[]) {
+  if (!value || typeof value !== "object") return;
+  if (Array.isArray(value)) {
+    for (const item of value) collectSchemaDescriptions(item, found);
+    return;
+  }
+  const record = value as Record<string, unknown>;
+  if (typeof record.description === "string") found.push(record.description);
+  for (const nested of Object.values(record)) collectSchemaDescriptions(nested, found);
+}
+
+test("MCP copy describes each tool without model-behavior or cross-tool instructions", async () => {
+  const client = await connectStudyServer(async () => new Response("{}"));
+  const { tools } = await client.listTools();
+  const toolNames = tools.map((tool) => tool.name);
+  const snippets = [client.getInstructions() ?? ""];
+  for (const tool of tools) {
+    snippets.push(tool.title ?? "", tool.description ?? "");
+    collectSchemaDescriptions(tool.inputSchema, snippets);
+  }
+
+  const behavior =
+    /\b(do not|don't|never|prefer|you must|you should|use this|call|invoke|agents?)\b/i;
+  const hidden = /[\u200B-\u200F\u202A-\u202E\u2060-\u2064\uFEFF]/;
+
+  for (const snippet of snippets) {
+    assert.equal(hidden.test(snippet), false, snippet);
+    assert.equal(behavior.test(snippet), false, snippet);
+    for (const name of toolNames) {
+      assert.equal(new RegExp(`\\b${name}\\b`).test(snippet), false, `${name} in: ${snippet}`);
+    }
   }
 });
 
@@ -430,8 +461,8 @@ test("key_research_goal alone still creates a study", async () => {
   assert.equal(seen?.url, "https://app.usercall.test/api/v1/agent/studies");
   assert.deepEqual(JSON.parse(seen?.body ?? "{}"), { key_research_goal: goal });
   const note = JSON.parse(result.content[0]?.text ?? "{}")._note as string;
-  assert.match(note, /Call simulate_interview before any real participant/);
-  assert.doesNotMatch(note, /Share the interview_link with participants/);
+  assert.match(note, /Study created with 1 interview slot/);
+  assert.doesNotMatch(note, /\b(call|simulate_interview|review_study|update_study)\b/i);
 });
 
 test("update_study forwards workflow question objects", async () => {

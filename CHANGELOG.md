@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Tool descriptions, parameter descriptions, and initialize instructions state what each tool does and what it returns. Workflow order stays in `skills/run-user-interviews/SKILL.md`.
+- Removed the cross-tool order that was written so OpenAI tool search would read a fixed interview sequence from the first ~512 characters of server instructions and from each tool description.
+
 ## 0.4.0
 
 - Official MCP Registry metadata: `mcpName` `co.usercall/mcp` and root `server.json`
