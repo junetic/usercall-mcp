@@ -7,7 +7,7 @@
 
 Give your AI agents the ability to ask real users why.
 
-Usercall MCP lets AI agents run user interviews via voice or text and return structured insights with themes and verbatim quotes.
+Usercall MCP runs AI-moderated voice or text interviews with real users. Use it to learn why users churn, where onboarding drops off, or why an action failed, and get themes, insights, and verbatim quotes.
 
 <video src="https://github.com/user-attachments/assets/8af1ccaf-25e6-4b73-b7aa-16c2753ad648" autoplay loop muted playsinline></video>
 
@@ -241,7 +241,7 @@ study_media:
 
 ### `create_study`
 
-Create an interview study for one research question. Returns `study_id` and `interview_link`. `key_research_goal` is required and cannot be changed later. `business_context` is optional. Defaults: `target_interviews` 1, `duration_minutes` 12, `interview_mode` voice. One active agent study per account. Does not run the interview or invite a participant. HTTP 402 includes `checkout_url`.
+Create an AI-moderated interview study to learn why users churn, drop off in onboarding, fail an action, or where a product assumption is wrong. Returns `study_id` and `interview_link` for a voice, text, or voice-and-text interview. `key_research_goal` is required and cannot be changed later. `business_context` is optional. Defaults: `target_interviews` 1, `duration_minutes` 12, `interview_mode` voice. One active agent study per account. Does not run the interview or invite a participant. HTTP 402 includes `checkout_url`.
 
 | Field                       | Type                                 | Required | Default |
 | --------------------------- | ------------------------------------ | -------- | ------- |
@@ -274,7 +274,7 @@ One locale turns the language picker off; two or more turn it on. Research goal 
 
 ### `update_study`
 
-Edit an existing study's slots, link availability, mode, languages, voice, link context, guide text, questions, or media. Returns the updated study. `key_research_goal` cannot be changed. `is_link_disabled` true stops new interviews and keeps recordings. One locale hides the language picker; two or more show it. Query parameters on `interview_link` are ignored until `enable_link_context` is true. `study_media` null clears media. API errors include `http_status`. Does not run a simulation or invite a participant.
+Update an interview study: slots, guide questions, intro, languages, voice, or an image or Figma prototype shown to participants. Returns the updated study. `key_research_goal` cannot be changed. `is_link_disabled` true stops new interviews and keeps recordings. One locale hides the language picker; two or more show it. Query parameters on `interview_link` are ignored until `enable_link_context` is true. `study_media` null clears media. API errors include `http_status`. Does not dry-run the guide or invite a participant.
 
 | Field                    | Type                              | Required |
 | ------------------------ | --------------------------------- | -------- |
@@ -296,7 +296,7 @@ Pass `study_media: null` to clear media. The `study_media` object follows the sa
 
 ### `get_study_status`
 
-Read whether a study is running, analyzing, or complete. Returns `completed_interviews`, `target_interviews`, `interview_link`, and `next_step`. `running` and `analyzing` include no findings or themes. Does not change the study.
+Check whether user interviews are still running, being analyzed, or complete. Returns `completed_interviews`, `target_interviews`, `interview_link`, and `next_step`. `running` and `analyzing` include no findings, themes, or quotes. Does not change the study.
 
 | Field      | Type        |
 | ---------- | ----------- |
@@ -309,7 +309,7 @@ Response includes interview progress fields, including
 
 ### `get_study_results`
 
-Read a study's findings. `format` omitted or `summary` returns themes, insights, and risks. `format=full` also returns verbatim transcripts. Empty themes mean analysis is not ready. Does not create interviews or edit the guide.
+Get interview findings after real users have talked: themes, insights, risks, and verbatim quotes. `format` omitted or `summary` returns themes, insights, and risks. `format=full` also returns transcripts. Empty themes mean analysis is not ready. Does not create interviews or edit the guide.
 
 | Field      | Type              | Required |
 | ---------- | ----------------- | -------- |
@@ -320,7 +320,7 @@ Summary/full responses include study progress fields and analysis output.
 
 ### `simulate_interview`
 
-Dry-run one interview against the current guide. Omit `simulation_id` to start; returns immediately with status `running` and a `simulation_id`. Pass `simulation_id` to read that run. Result status is `pass`, `fail`, or `error`. Max 5 simulations per account per UTC day. HTTP 429 means the daily cap is reached. Optional `persona` has `name` and `prompt`. A simulation does not change `completed_interviews` and does not invite a participant.
+Dry-run an interview guide before a real participant joins, including a question about churn, onboarding, or a failed action. Omit `simulation_id` to start; returns immediately with status `running` and a `simulation_id`. Pass `simulation_id` to read that run. Result status is `pass`, `fail`, or `error`. Max 5 simulations per account per UTC day. HTTP 429 means the daily cap is reached. Optional `persona` has `name` and `prompt`. A dry-run does not change `completed_interviews` and does not invite a participant.
 
 | Field           | Type        | Required |
 | --------------- | ----------- | -------- |
@@ -332,7 +332,7 @@ Omit `simulation_id` to `POST /api/v1/agent/studies/{studyId}/simulations`. Pass
 
 ### `review_study`
 
-Review the interview guide and return the written review. Reads the guide only: no transcripts, and suggested edits are not applied. Costs 1 credit. Request is `study_id` only; `call_ids` are not accepted. Works when the in-app review control is hidden. HTTP 402 includes `checkout_url`. Does not return study findings.
+Review an interview guide and return a written critique of the questions before real users see them. Reads the guide only: no transcripts, and suggested edits are not applied. Costs 1 credit. Request is `study_id` only; `call_ids` are not accepted. Works when the in-app review control is hidden. HTTP 402 includes `checkout_url`. Does not return themes, quotes, or other findings.
 
 | Field      | Type        | Required |
 | ---------- | ----------- | -------- |
@@ -342,7 +342,7 @@ Sends `study_id` only. It does not send `call_ids`.
 
 ### `delete_study`
 
-Permanently delete a study, its interview recordings, and unused reserved credits. Cannot be undone. Does not delete research triggers.
+Permanently delete an interview study, its recordings, and unused reserved credits. Cannot be undone. Does not delete in-product research triggers.
 
 | Field      | Type        | Required |
 | ---------- | ----------- | -------- |
@@ -352,16 +352,16 @@ Permanently delete a study, its interview recordings, and unused reserved credit
 
 | Tool                       | Purpose                                                                                                   |
 | -------------------------- | --------------------------------------------------------------------------------------------------------- |
-| `get_trigger_capabilities` | Supported and unsupported condition kinds. One event, exact property or trait, URL rule, page dwell. No counts, sequences, absence, time windows, or not-equals |
-| `get_trigger_sdk_setup`    | `install_snippet`, `identify_snippet`, `allowlist_update_snippet`, and install status. No secret keys |
-| `list_trigger_events`      | Event names from the last 30 days. A trigger accepts only an observed name |
-| `get_trigger_event_schema` | Types and sample values for one event. Exact, case-sensitive, type-sensitive |
-| `list_studies`             | `study_id`, `interview_link`, `interview_mode`, and `trigger_eligible` |
-| `create_research_trigger`  | Paused trigger. Returns `activation_url`. Defaults to intercept. Cannot activate or send the invite |
-| `list_research_triggers`   | Status and `activation_url`. The URL is empty after a person activates the trigger |
-| `get_research_trigger`     | Status, targeting, `activation_url`, and invite and interview counts |
-| `update_research_trigger`  | Edit targeting, sampling, or copy. `status: "active"` is rejected (409). Editing an active trigger pauses it |
-| `delete_research_trigger`  | Permanently delete a trigger. A paused trigger stops new invites and keeps it |
+| `get_trigger_capabilities` | Which in-product trigger conditions work. One event, exact property or trait, URL rule, page dwell. No counts, sequences, absence, time windows, or not-equals |
+| `get_trigger_sdk_setup`    | Snippet for product events (failed action, onboarding, churn). `install_snippet`, `identify_snippet`, `allowlist_update_snippet`. No secret keys |
+| `list_trigger_events`      | Product event names from the last 30 days. A trigger accepts only an observed name |
+| `get_trigger_event_schema` | Fields on one product event, with types and sample values. Exact, case-sensitive, type-sensitive |
+| `list_studies`             | Existing interview studies: `study_id`, `interview_link`, `interview_mode`, `trigger_eligible` |
+| `create_research_trigger`  | Paused invite after a product moment (failed action, churn, onboarding). Returns `activation_url` |
+| `list_research_triggers`   | In-product triggers with status and `activation_url` |
+| `get_research_trigger`     | One trigger: who it invites, `activation_url`, invite and interview counts. No themes or quotes |
+| `update_research_trigger`  | Who gets invited. `status: "active"` is rejected (409). Editing an active trigger pauses it |
+| `delete_research_trigger`  | Permanently delete a trigger. Completed interviews stay on the study |
 
 #### `create_research_trigger`
 

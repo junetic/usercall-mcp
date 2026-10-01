@@ -2,7 +2,7 @@
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "usercall",
   "version": "0.3.0",
-  "description": "Run real user interviews from an agent and get themes plus verbatim quotes. Set up Research Triggers that interview users right after they do something in your product.",
+  "description": "AI-moderated voice and text interviews with real users. Learn why users churn or drop off in onboarding, and get themes, insights, and verbatim quotes. Research triggers invite users after an in-product moment.",
   "author": {
     "name": "Usercall",
     "email": "contact@usercall.co",

@@ -2,7 +2,7 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "co.usercall/mcp",
   "title": "Usercall",
-  "description": "Give your AI agents the ability to ask real users why.",
+  "description": "AI-moderated voice and text interviews with real users. Learn why users churn, drop off in onboarding, or fail an action, and get themes, insights, and verbatim quotes.",
   "version": "0.4.0",
   "websiteUrl": "https://usercall.co",
   "repository": {

@@ -351,6 +351,9 @@ test("the stdio server registers every study and trigger tool", async () => {
   for (const fact of [
     "voice",
     "text",
+    "churn",
+    "onboarding",
+    "quotes",
     "activation_url",
     "checkout_url",
     "409",
@@ -393,16 +396,15 @@ function collectSchemaDescriptions(value: unknown, found: string[]) {
   for (const nested of Object.values(record)) collectSchemaDescriptions(nested, found);
 }
 
-/** Cross-tool and model-behavior instructions. Ordinary words such as "callback" are allowed. */
+/** Cross-tool orchestration and direct commands to the model. Job language is allowed. */
 const ORCHESTRATION_PATTERNS = [
   /\bcall\s+(?:this|that|again|next|first|instead)\b/i,
   /\b(?:then|next)\s+call\b/i,
-  /\buse this (?:when|after|only|before|to|instead)\b/i,
   /\b(?:do not|don't)\b/i,
   /\bnever\s+(?:call|set|share|treat|invent|poll|try|activate|send)\b/i,
   /\b(?:you must|you should)\b/i,
   /\bagents?\s+(?:cannot|must|should|can|do)\b/i,
-  /\bprefer\b/i,
+  /\bprefer\s+(?:format|to\s+call)\b/i,
   /\bhand\s+\S+\s+to\b/i,
   /\bsurface\s+\S+\s+to\b/i,
 ];
@@ -430,13 +432,18 @@ test("MCP copy describes each tool without model-behavior or cross-tool instruct
     "One active agent study per account.",
     "Does not invite a participant.",
     "x-usercall-signature",
+    "Use this to learn why users churn",
+    "Use this when you need themes, insights, and quotes",
+    "onboarding drop-off and failed actions",
+    "themes, insights, and verbatim quotes",
+    "users who prefer voice",
   ]) {
     assert.deepEqual(orchestrationHits(allowed, toolNames), [], allowed);
   }
   for (const blocked of [
     "Call list_studies first",
     "then call update_study",
-    "use this when you need why",
+    "use this when you need why, then call get_study_results",
     "Do not share the link yet",
     "Never set status to active",
     "Prefer format=summary",
