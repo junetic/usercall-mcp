@@ -241,7 +241,7 @@ study_media:
 
 ### `create_study`
 
-Create an AI-moderated interview study to learn why users churn, drop off in onboarding, fail an action, or where a product assumption is wrong. Returns `study_id` and `interview_link` for a voice, text, or voice-and-text interview. `key_research_goal` is required and cannot be changed later. `business_context` is optional. Defaults: `target_interviews` 1, `duration_minutes` 12, `interview_mode` voice. One active agent study per account. Does not run the interview or invite a participant. HTTP 402 includes `checkout_url`.
+Create an AI-moderated interview study to learn why users churn, drop off in onboarding, fail an action, or where a product assumption is wrong. Returns `study_id` and `interview_link` for a voice, text, or voice-and-text interview. `key_research_goal` is required and cannot be changed later. `business_context` is optional. Defaults: `target_interviews` 1, `duration_minutes` 12, `interview_mode` voice. One active agent study per account. Does not run the interview or invite a participant. HTTP 402 includes `checkout_url`. Optional `target_question_count` and `max_questions_for_duration` set how many guide questions to generate. Bands are 2-5 (target 4, max 5), 5-10 (8, 10), 11-15 (13, 15), 15-20 (18, 20), 21-25 (23, 25), and 25-30 (28, 30). 16-20 uses the same 18 and 20 as 15-20. `max_questions_for_duration` must fit `duration_minutes` at 2.2 minutes per question: 5 minutes allows 2 questions, 12 allows 5, 25 allows 11, 45 allows 20, and 65 allows 29. A 15-20 guide does not fit 12 minutes. 25-30 does not fit 65 minutes. Omit both for about 5-6 questions, still capped by that duration limit.
 
 | Field                       | Type                                 | Required | Default |
 | --------------------------- | ------------------------------------ | -------- | ------- |
@@ -251,6 +251,8 @@ Create an AI-moderated interview study to learn why users churn, drop off in onb
 | `target_interviews`         | number (1–200)                       | no       | `1`     |
 | `languages`                 | string[]                             | no       |         |
 | `duration_minutes`          | number (5–65)                        | no       | `12`    |
+| `target_question_count`     | number (1–31)                        | no       |         |
+| `max_questions_for_duration`| number (1–31)                        | no       |         |
 | `interview_mode`            | `voice \| text \| voice_and_text`    | no       | `voice` |
 | `voice_gender`              | `female \| male`                     | no       |         |
 | `enable_link_context`       | boolean                              | no       |         |

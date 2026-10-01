@@ -44,6 +44,51 @@ const studyMediaSchema = z
     "Visual stimulus shown during all interview questions (web participants only)",
   );
 
+const GUIDE_MINUTES_PER_QUESTION = 2.2;
+const GUIDE_QUESTION_COUNT_MIN = 1;
+const GUIDE_QUESTION_COUNT_MAX = Math.max(1, Math.floor(70 / GUIDE_MINUTES_PER_QUESTION));
+
+/** Same bands as the in-app guide generator. 16-20 matches the 15-20 counts. */
+const GUIDE_QUESTION_COUNT_BANDS = [
+  { label: "2-5", target: 4, max: 5 },
+  { label: "5-10", target: 8, max: 10 },
+  { label: "11-15", target: 13, max: 15 },
+  { label: "15-20", target: 18, max: 20 },
+  { label: "16-20", target: 18, max: 20 },
+  { label: "21-25", target: 23, max: 25 },
+  { label: "25-30", target: 28, max: 30 },
+] as const;
+
+const questionCountSchema = z
+  .number()
+  .int()
+  .min(GUIDE_QUESTION_COUNT_MIN)
+  .max(GUIDE_QUESTION_COUNT_MAX);
+
+function maxQuestionsForDurationMinutes(durationMinutes: number) {
+  const fitted = Math.floor(durationMinutes / GUIDE_MINUTES_PER_QUESTION);
+  return Math.max(GUIDE_QUESTION_COUNT_MIN, Math.min(fitted, GUIDE_QUESTION_COUNT_MAX));
+}
+
+export function questionCountDurationMessage(input: {
+  durationMinutes: number;
+  targetQuestionCount?: number;
+  maxQuestionsForDuration?: number;
+}) {
+  const cap = maxQuestionsForDurationMinutes(input.durationMinutes);
+  const targetTooHigh =
+    typeof input.targetQuestionCount === "number" && input.targetQuestionCount > cap;
+  const maxTooHigh =
+    typeof input.maxQuestionsForDuration === "number" && input.maxQuestionsForDuration > cap;
+  if (!targetTooHigh && !maxTooHigh) return null;
+
+  const fitting = GUIDE_QUESTION_COUNT_BANDS.filter((band) => band.max <= cap).map(
+    (band) => band.label,
+  );
+  const fittingText = fitting.length > 0 ? fitting.join(", ") : "none";
+  return `Question count does not fit duration_minutes ${input.durationMinutes}. At ${GUIDE_MINUTES_PER_QUESTION} minutes per question, that duration allows at most ${cap} questions. Bands that fit: ${fittingText}.`;
+}
+
 const languagesSchema = z.array(z.string().trim().min(1)).min(1).optional();
 const voiceGenderSchema = z.enum(["female", "male"]).optional();
 const customLinkVariablesSchema = z
@@ -83,6 +128,16 @@ const createStudySchema = z.object({
     .max(65)
     .optional()
     .describe("Interview length in minutes. Defaults to 12."),
+  target_question_count: questionCountSchema
+    .optional()
+    .describe(
+      "Preferred guide question count. Existing band targets are 4, 8, 13, 18, 23, and 28. Must be at most floor(duration_minutes / 2.2).",
+    ),
+  max_questions_for_duration: questionCountSchema
+    .optional()
+    .describe(
+      "Hard cap on generated guide questions. Existing band maximums are 5, 10, 15, 20, 25, and 30. Must be at most floor(duration_minutes / 2.2). 12 minutes allows 5, so the 15-20 band does not fit.",
+    ),
   interview_mode: z
     .enum(["voice", "text", "voice_and_text"])
     .optional()
@@ -250,7 +305,7 @@ export const STUDY_TOOL_CATALOG: StudyToolCatalogEntry[] = [
     name: "create_study",
     title: "Create an interview study",
     description:
-      "Create an AI-moderated interview study to learn why users churn, drop off in onboarding, fail an action, or where a product assumption is wrong. Returns study_id and interview_link for a voice, text, or voice-and-text interview. key_research_goal is required and cannot be changed later. business_context is optional. Defaults: target_interviews 1, duration_minutes 12, interview_mode voice. One active agent study per account. Does not run the interview or invite a participant. HTTP 402 includes checkout_url.",
+      "Create an AI-moderated interview study to learn why users churn, drop off in onboarding, fail an action, or where a product assumption is wrong. Returns study_id and interview_link for a voice, text, or voice-and-text interview. key_research_goal is required and cannot be changed later. business_context is optional. Defaults: target_interviews 1, duration_minutes 12, interview_mode voice. One active agent study per account. Does not run the interview or invite a participant. HTTP 402 includes checkout_url. Optional target_question_count and max_questions_for_duration set how many guide questions to generate. Bands are 2-5 (target 4, max 5), 5-10 (8, 10), 11-15 (13, 15), 15-20 (18, 20), 21-25 (23, 25), and 25-30 (28, 30). 16-20 uses the same 18 and 20 as 15-20. max_questions_for_duration must fit duration_minutes at 2.2 minutes per question: 5 minutes allows 2 questions, 12 allows 5, 25 allows 11, 45 allows 20, and 65 allows 29. A 15-20 guide does not fit 12 minutes. 25-30 does not fit 65 minutes. Omit both for about 5-6 questions, still capped by that duration limit.",
     annotations: {
       readOnlyHint: false,
       destructiveHint: false,
@@ -483,6 +538,26 @@ export function createUsercallServer(config: UsercallServerConfig) {
     },
     async (input) => {
       try {
+        const questionCountError = questionCountDurationMessage({
+          durationMinutes: input.duration_minutes ?? 12,
+          targetQuestionCount: input.target_question_count,
+          maxQuestionsForDuration: input.max_questions_for_duration,
+        });
+        if (questionCountError) {
+          return {
+            isError: true,
+            content: [
+              {
+                type: "text" as const,
+                text: JSON.stringify({
+                  error: "invalid_request",
+                  message: questionCountError,
+                }),
+              },
+            ],
+          };
+        }
+
         const payload = await callUsercallApi("/api/v1/agent/studies", {
           method: "POST",
           body: JSON.stringify(input),

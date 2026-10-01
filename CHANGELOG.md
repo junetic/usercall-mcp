@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- `create_study` accepts `target_question_count` and `max_questions_for_duration` using the in-app guide bands. The max must fit `duration_minutes` at 2.2 minutes per question (5 minutes allows 2, 12 allows 5, 25 allows 11, 45 allows 20, 65 allows 29). A longer band is rejected.
 - Tool descriptions, parameter descriptions, and initialize instructions name the research job (churn, onboarding drop-off, failed actions, product assumptions, themes, quotes) and the limits. The first ~512 characters of initialize instructions are that category language plus product facts. Workflow order stays in `skills/run-user-interviews/SKILL.md`.
 - Removed the cross-tool order that was written so OpenAI tool search would read a fixed interview sequence from server instructions and from each tool description.
 

@@ -47,9 +47,11 @@
         "interview_mode",
         "key_research_goal",
         "languages",
+        "max_questions_for_duration",
         "metadata",
         "study_media",
         "target_interviews",
+        "target_question_count",
         "voice_gender"
       ],
       "required": [

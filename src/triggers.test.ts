@@ -551,6 +551,52 @@ test("key_research_goal alone still creates a study", async () => {
   );
 });
 
+test("create_study rejects a question band longer than duration_minutes", async () => {
+  let body: unknown;
+  const client = await connectStudyServer(async (_input, init) => {
+    body = JSON.parse(String(init?.body));
+    return new Response(
+      JSON.stringify({ study_id: STUDY_ID, interview_link: "https://call.example" }),
+      { status: 201 },
+    );
+  });
+
+  const goal = "Why do invited teammates stop before they send the invite?";
+  const rejected = (await client.callTool({
+    name: "create_study",
+    arguments: {
+      key_research_goal: goal,
+      duration_minutes: 12,
+      target_question_count: 18,
+      max_questions_for_duration: 20,
+    },
+  })) as { isError?: boolean; content: Array<{ text: string }> };
+
+  assert.equal(rejected.isError, true);
+  assert.equal(body, undefined);
+  const rejectedBody = JSON.parse(rejected.content[0]?.text ?? "{}") as { message?: string };
+  assert.match(rejectedBody.message ?? "", /at most 5 questions/);
+  assert.match(rejectedBody.message ?? "", /Bands that fit: 2-5/);
+
+  const accepted = (await client.callTool({
+    name: "create_study",
+    arguments: {
+      key_research_goal: goal,
+      duration_minutes: 45,
+      target_question_count: 18,
+      max_questions_for_duration: 20,
+    },
+  })) as { isError?: boolean; content: Array<{ text: string }> };
+
+  assert.equal(accepted.isError, undefined);
+  assert.deepEqual(body, {
+    key_research_goal: goal,
+    duration_minutes: 45,
+    target_question_count: 18,
+    max_questions_for_duration: 20,
+  });
+});
+
 test("update_study forwards workflow question objects", async () => {
   let body: unknown;
   const client = await connectStudyServer(async (_input, init) => {
