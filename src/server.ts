@@ -216,10 +216,18 @@ const simulateInterviewSchema = studyIdSchema.extend({
   simulation_id: z.string().uuid().optional(),
   persona: z
     .object({
-      name: z.string().trim().min(1).max(80),
-      prompt: z.string().trim().min(1).max(4000),
+      name: z.string().trim().min(1).max(80).describe("1–80 characters. Used as-is."),
+      prompt: z
+        .string()
+        .trim()
+        .min(1)
+        .max(4000)
+        .describe("1–4000 characters. Used as-is."),
     })
-    .optional(),
+    .optional()
+    .describe(
+      "Omit persona and the server writes one from the research question, including that the person did not do the thing the study is about. A sent persona is used as-is.",
+    ),
 });
 
 export interface StudyToolAnnotations {
@@ -250,7 +258,7 @@ export const STUDY_TOOL_CATALOG: StudyToolCatalogEntry[] = [
     name: "create_study",
     title: "Create an interview study",
     description:
-      "Create an AI-moderated interview study to learn why users churn, drop off in onboarding, fail an action, or where a product assumption is wrong. Returns study_id and interview_link for a voice, text, or voice-and-text interview. key_research_goal is required and cannot be changed later. business_context is optional. Defaults: target_interviews 1, duration_minutes 12, interview_mode voice. One active agent study per account. Does not run the interview or invite a participant. HTTP 402 includes checkout_url.",
+      "Create an AI-moderated interview study to learn why users churn, drop off in onboarding, fail an action, or where a product assumption is wrong. Returns HTTP 200 with study_id and interview_link for a voice, text, or voice-and-text interview. interview_link is an https://app.usercall.co/interview/ URL. key_research_goal is required and cannot be changed later. business_context is optional. Defaults: target_interviews 1, duration_minutes 12, interview_mode voice. One active agent study per account. Does not run the interview or invite a participant. HTTP 402 includes checkout_url.",
     annotations: {
       readOnlyHint: false,
       destructiveHint: false,
@@ -272,7 +280,7 @@ export const STUDY_TOOL_CATALOG: StudyToolCatalogEntry[] = [
     name: "get_study_status",
     title: "Check interview progress",
     description:
-      "Check whether user interviews are still running, being analyzed, or complete. Returns completed_interviews, target_interviews, interview_link, and next_step. running and analyzing include no findings, themes, or quotes. Does not change the study.",
+      "Check whether interviews about churn, onboarding, or a failed action have started. Returns completed_interviews, target_interviews, interview_link, and next_step. interview_link is an https://app.usercall.co/interview/ URL. Zero interviews is status not_started. running means an interview is underway. running and analyzing include no findings, themes, or quotes. next_step is \"update_study\" while a ready review still has unapplied edits. After the guide matches those edits, or when there are no edits, next_step is share when a terminal simulation or review exists and completed_interviews is still 0. Does not change the study.",
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
@@ -294,7 +302,7 @@ export const STUDY_TOOL_CATALOG: StudyToolCatalogEntry[] = [
     name: "simulate_interview",
     title: "Dry-run an interview",
     description:
-      "Dry-run an interview guide before a real participant joins, including a question about churn, onboarding, or a failed action. Omit simulation_id to start; returns immediately with status running and a simulation_id. Pass simulation_id to read that run. Result status is pass, fail, or error. Max 5 simulations per account per UTC day. HTTP 429 means the daily cap is reached. Optional persona has name and prompt. A dry-run does not change completed_interviews and does not invite a participant.",
+      "Dry-run an interview guide before a real participant joins, including a question about churn, onboarding, or a failed action. Omit simulation_id to start; returns immediately with status \"running\" and a simulation_id. Pass simulation_id to read that run. Omit persona and the server writes one from the research question, including that the person did not do the thing the study is about. A sent persona is used as-is: name is 1–80 characters and prompt is 1–4000. Result status is pass, fail, or error. A finished transcript is [{ \"role\": \"agent\" | \"user\", \"content\": \"...\" }]. call_id, timezone, and timestamps are absent. Max 5 simulations per account per UTC day. HTTP 429 means the daily cap is reached. A dry-run does not change completed_interviews and does not invite a participant.",
     annotations: {
       readOnlyHint: false,
       destructiveHint: false,
@@ -305,7 +313,7 @@ export const STUDY_TOOL_CATALOG: StudyToolCatalogEntry[] = [
     name: "review_study",
     title: "Review the interview guide",
     description:
-      "Review an interview guide and return a written critique of the questions before real users see them. Reads the guide only: no transcripts, and suggested edits are not applied. Costs 1 credit. Request is study_id only; call_ids are not accepted. Works when the in-app review control is hidden. HTTP 402 includes checkout_url. Does not return themes, quotes, or other findings.",
+      "Review an interview guide before real users see the questions, including a question about churn, onboarding, or a failed action. The body keeps findings and adds suggested_edits. suggested_edits is an \"update_study\" body, used as-is, or null when there is nothing to change. Nothing is applied. Costs 1 credit. Request is study_id only; call_ids are not accepted. Works when the in-app review control is hidden. HTTP 402 includes checkout_url. Reads the guide only: no transcripts.",
     annotations: {
       readOnlyHint: false,
       destructiveHint: false,

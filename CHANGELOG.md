@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Document the interview JSON the Agent API already returns. `simulate_interview`: omit `persona` and the server writes one from the research question (including that the person did not do the thing the study is about); a sent persona (`name` 1–80, `prompt` 1–4000) is used as-is; start is still `status: "running"` plus `simulation_id`; a finished transcript is `role` and `content` only. `review_study` keeps `findings` and adds `suggested_edits` (an `update_study` body, or `null`); send it to `update_study` as-is; nothing is applied. `get_study_status`: zero interviews is `not_started`; `running` means an interview is underway; `next_step` is `update_study` while a ready review still has unapplied edits, and `share` once the guide matches those edits (or there are no edits), a terminal simulation or review exists, and completed interviews are still 0. `create_study` success is HTTP 200. Links are `https://app.usercall.co/interview/...`.
 - Tool descriptions, parameter descriptions, and initialize instructions name the research job (churn, onboarding drop-off, failed actions, product assumptions, themes, quotes) and the limits. The first ~512 characters of initialize instructions are that category language plus product facts. Workflow order stays in `skills/run-user-interviews/SKILL.md`.
 - Removed the cross-tool order that was written so OpenAI tool search would read a fixed interview sequence from server instructions and from each tool description.
 
