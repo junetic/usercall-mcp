@@ -479,7 +479,7 @@ test("study descriptions match the Agent API JSON", () => {
     STUDY_TOOL_CATALOG.map((tool) => [tool.name, tool.description]),
   ) as Record<string, string>;
 
-  assert.match(byName.create_study ?? "", /HTTP 200/);
+  assert.match(byName.create_study ?? "", /HTTP 201/);
   assert.match(byName.create_study ?? "", /https:\/\/app\.usercall\.co\/interview\//);
   assert.match(byName.simulate_interview ?? "", /status "running"/);
   assert.match(byName.simulate_interview ?? "", /simulation_id/);

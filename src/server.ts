@@ -258,7 +258,7 @@ export const STUDY_TOOL_CATALOG: StudyToolCatalogEntry[] = [
     name: "create_study",
     title: "Create an interview study",
     description:
-      "Create an AI-moderated interview study to learn why users churn, drop off in onboarding, fail an action, or where a product assumption is wrong. Returns HTTP 200 with study_id and interview_link for a voice, text, or voice-and-text interview. interview_link is an https://app.usercall.co/interview/ URL. key_research_goal is required and cannot be changed later. business_context is optional. Defaults: target_interviews 1, duration_minutes 12, interview_mode voice. One active agent study per account. Does not run the interview or invite a participant. HTTP 402 includes checkout_url.",
+      "Create an AI-moderated interview study to learn why users churn, drop off in onboarding, fail an action, or where a product assumption is wrong. Returns HTTP 201 with study_id and interview_link for a voice, text, or voice-and-text interview. interview_link is an https://app.usercall.co/interview/ URL. key_research_goal is required and cannot be changed later. business_context is optional. Defaults: target_interviews 1, duration_minutes 12, interview_mode voice. One active agent study per account. Does not run the interview or invite a participant. HTTP 402 includes checkout_url.",
     annotations: {
       readOnlyHint: false,
       destructiveHint: false,

@@ -241,7 +241,7 @@ study_media:
 
 ### `create_study`
 
-Create an AI-moderated interview study to learn why users churn, drop off in onboarding, fail an action, or where a product assumption is wrong. Returns HTTP 200 with `study_id` and `interview_link` for a voice, text, or voice-and-text interview. `interview_link` is an `https://app.usercall.co/interview/` URL. `key_research_goal` is required and cannot be changed later. `business_context` is optional. Defaults: `target_interviews` 1, `duration_minutes` 12, `interview_mode` voice. One active agent study per account. Does not run the interview or invite a participant. HTTP 402 includes `checkout_url`.
+Create an AI-moderated interview study to learn why users churn, drop off in onboarding, fail an action, or where a product assumption is wrong. Returns HTTP 201 with `study_id` and `interview_link` for a voice, text, or voice-and-text interview. `interview_link` is an `https://app.usercall.co/interview/` URL. `key_research_goal` is required and cannot be changed later. `business_context` is optional. Defaults: `target_interviews` 1, `duration_minutes` 12, `interview_mode` voice. One active agent study per account. Does not run the interview or invite a participant. HTTP 402 includes `checkout_url`.
 
 | Field                       | Type                                 | Required | Default |
 | --------------------------- | ------------------------------------ | -------- | ------- |
@@ -411,7 +411,7 @@ For page-visit triggers, use `source: "page_visit"` and `event_name: "$pageview"
    languages: ["ko"]
    interview_mode: "voice"
 
-   → HTTP 200 { study_id, interview_link: "https://app.usercall.co/interview/..." }
+   → HTTP 201 { study_id, interview_link: "https://app.usercall.co/interview/..." }
    (`business_context` is optional; `key_research_goal` alone still creates a study)
 
 2. simulate_interview
