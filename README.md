@@ -52,7 +52,7 @@ Agent: "Why are users confused about onboarding?"
 → get_study_results
 ```
 
-The returned `interview_link` can be shared with participants through email, Slack, Discord, or [in-product prompts](https://www.usercall.co/research-triggers).
+The returned `interview_link` is an `https://app.usercall.co/interview/` URL. Share it with participants through email, Slack, Discord, or [in-product prompts](https://www.usercall.co/research-triggers).
 
 Example result:
 
@@ -241,7 +241,7 @@ study_media:
 
 ### `create_study`
 
-Create an AI-moderated interview study to learn why users churn, drop off in onboarding, fail an action, or where a product assumption is wrong. Returns `study_id` and `interview_link` for a voice, text, or voice-and-text interview. `key_research_goal` is required and cannot be changed later. `business_context` is optional. Defaults: `target_interviews` 1, `duration_minutes` 12, `interview_mode` voice. One active agent study per account. Does not run the interview or invite a participant. HTTP 402 includes `checkout_url`.
+Create an AI-moderated interview study to learn why users churn, drop off in onboarding, fail an action, or where a product assumption is wrong. Returns HTTP 200 with `study_id` and `interview_link` for a voice, text, or voice-and-text interview. `interview_link` is an `https://app.usercall.co/interview/` URL. `key_research_goal` is required and cannot be changed later. `business_context` is optional. Defaults: `target_interviews` 1, `duration_minutes` 12, `interview_mode` voice. One active agent study per account. Does not run the interview or invite a participant. HTTP 402 includes `checkout_url`.
 
 | Field                       | Type                                 | Required | Default |
 | --------------------------- | ------------------------------------ | -------- | ------- |
@@ -296,16 +296,13 @@ Pass `study_media: null` to clear media. The `study_media` object follows the sa
 
 ### `get_study_status`
 
-Check whether user interviews are still running, being analyzed, or complete. Returns `completed_interviews`, `target_interviews`, `interview_link`, and `next_step`. `running` and `analyzing` include no findings, themes, or quotes. Does not change the study.
+Check whether interviews about churn, onboarding, or a failed action have started. Returns `completed_interviews`, `target_interviews`, `interview_link`, and `next_step`. `interview_link` is an `https://app.usercall.co/interview/` URL. Zero interviews is `status: "not_started"`. `running` means an interview is underway. `running` and `analyzing` include no findings, themes, or quotes. `next_step` is `update_study` while a ready review still has unapplied edits. After the guide matches those edits, or when there are no edits, `share` is correct if a terminal simulation or review exists and completed interviews are still 0. Does not change the study.
 
 | Field      | Type        |
 | ---------- | ----------- |
 | `study_id` | uuid string |
 
-Status values: `running` · `analyzing` · `complete`
-
-Response includes interview progress fields, including
-`completed_interviews` and `target_interviews`.
+Status values: `not_started` · `running` · `analyzing` · `complete`
 
 ### `get_study_results`
 
@@ -320,25 +317,27 @@ Summary/full responses include study progress fields and analysis output.
 
 ### `simulate_interview`
 
-Dry-run an interview guide before a real participant joins, including a question about churn, onboarding, or a failed action. Omit `simulation_id` to start; returns immediately with status `running` and a `simulation_id`. Pass `simulation_id` to read that run. Result status is `pass`, `fail`, or `error`. Max 5 simulations per account per UTC day. HTTP 429 means the daily cap is reached. Optional `persona` has `name` and `prompt`. A dry-run does not change `completed_interviews` and does not invite a participant.
+Dry-run an interview guide before a real participant joins, including a question about churn, onboarding, or a failed action. Omit `simulation_id` to start; returns immediately with `status: "running"` and a `simulation_id`. Pass `simulation_id` to read that run. Omit `persona` and the server writes one from the research question, including that the person did not do the thing the study is about. A sent persona is used as-is: `name` is 1–80 characters and `prompt` is 1–4000. Result status is `pass`, `fail`, or `error`. A finished transcript is `[{ "role": "agent" | "user", "content": "..." }]`. Do not expect `call_id`, timezone, or timestamps. Max 5 simulations per account per UTC day. HTTP 429 means the daily cap is reached. A dry-run does not change `completed_interviews` and does not invite a participant.
 
-| Field           | Type        | Required |
-| --------------- | ----------- | -------- |
-| `study_id`      | uuid string | yes      |
-| `simulation_id` | uuid string | no       |
+| Field           | Type               | Required |
+| --------------- | ------------------ | -------- |
+| `study_id`      | uuid string        | yes      |
+| `simulation_id` | uuid string        | no       |
 | `persona`       | `{ name, prompt }` | no       |
+| `persona.name`  | string (1–80)      | with `persona` |
+| `persona.prompt`| string (1–4000)    | with `persona` |
 
-Omit `simulation_id` to `POST /api/v1/agent/studies/{studyId}/simulations`. Pass `simulation_id` to `GET` that simulation. The tool does not poll.
+Omit `simulation_id` to `POST /api/v1/agent/studies/{studyId}/simulations`. Pass `simulation_id` to `GET` that simulation. The tool does not poll. Omit `persona` on start and the server writes one. A sent `persona` is forwarded unchanged.
 
 ### `review_study`
 
-Review an interview guide and return a written critique of the questions before real users see them. Reads the guide only: no transcripts, and suggested edits are not applied. Costs 1 credit. Request is `study_id` only; `call_ids` are not accepted. Works when the in-app review control is hidden. HTTP 402 includes `checkout_url`. Does not return themes, quotes, or other findings.
+Review an interview guide before real users see the questions, including a question about churn, onboarding, or a failed action. The body keeps `findings` and adds `suggested_edits`. `suggested_edits` is an `update_study` body, or `null` when there is nothing to change. Send `suggested_edits` to `update_study` as-is. Nothing is applied for you. Costs 1 credit. Request is `study_id` only; `call_ids` are not accepted. Works when the in-app review control is hidden. HTTP 402 includes `checkout_url`. Reads the guide only: no transcripts.
 
 | Field      | Type        | Required |
 | ---------- | ----------- | -------- |
 | `study_id` | uuid string | yes      |
 
-Sends `study_id` only. It does not send `call_ids`.
+Sends `study_id` only. It does not send `call_ids`. A non-null `suggested_edits` value is the `update_study` body, unchanged.
 
 ### `delete_study`
 
@@ -356,7 +355,7 @@ Permanently delete an interview study, its recordings, and unused reserved credi
 | `get_trigger_sdk_setup`    | Snippet for product events (failed action, onboarding, churn). `install_snippet`, `identify_snippet`, `allowlist_update_snippet`. No secret keys |
 | `list_trigger_events`      | Product event names from the last 30 days. A trigger accepts only an observed name |
 | `get_trigger_event_schema` | Fields on one product event, with types and sample values. Exact, case-sensitive, type-sensitive |
-| `list_studies`             | Existing interview studies: `study_id`, `interview_link`, `interview_mode`, `trigger_eligible` |
+| `list_studies`             | Existing interview studies: `study_id`, `interview_link` (`https://app.usercall.co/interview/...`), `interview_mode`, `trigger_eligible` |
 | `create_research_trigger`  | Paused invite after a product moment (failed action, churn, onboarding). Returns `activation_url` |
 | `list_research_triggers`   | In-product triggers with status and `activation_url` |
 | `get_research_trigger`     | One trigger: who it invites, `activation_url`, invite and interview counts. No themes or quotes |
@@ -412,24 +411,31 @@ For page-visit triggers, use `source: "page_visit"` and `event_name: "$pageview"
    languages: ["ko"]
    interview_mode: "voice"
 
-   → returns { study_id, interview_link }
+   → HTTP 200 { study_id, interview_link: "https://app.usercall.co/interview/..." }
    (`business_context` is optional; `key_research_goal` alone still creates a study)
 
 2. simulate_interview
    study_id
-   → running, simulation_id
+   → status "running", simulation_id
    call again with simulation_id
    → pass, fail, or error
+   finished transcript: [{ "role": "agent" | "user", "content": "..." }]
+   omit persona unless you want a specific one (name 1–80, prompt 1–4000)
 
 3. review_study
    study_id
-   → guide check only; write changes with update_study
+   → findings, plus suggested_edits (an update_study body, or null)
+   send suggested_edits to update_study as-is; nothing is applied for you
 
 4. Share interview_link with participants
    (email, Slack, in-product prompt, etc.)
+   share is correct once a terminal simulation or review exists,
+   completed interviews are still 0, and any suggested edits are already on the guide
 
 5. get_study_status
-   → "analyzing"
+   → "not_started" when completed_interviews is 0
+   → "running" while an interview is underway
+   → next_step "update_study" while a ready review still has unapplied edits
 
 6. get_study_results
    → summary: themes, insights, and risks

@@ -86,16 +86,16 @@ Do not create a study until they approve.
 
 1. `list_studies` - reuse if an open study already asks this question
 2. `create_study` with approved goal (and context)
-3. `simulate_interview` (start, then read with `simulation_id`) until pass, or fix guide via `update_study` and simulate again (max 5 simulations per UTC day)
-4. Optional: `review_study`, then `update_study` for suggested edits
+3. `simulate_interview` (start, then read with `simulation_id`) until pass, or fix guide via `update_study` and simulate again (max 5 simulations per UTC day). Omit `persona` unless a specific one is required. A finished transcript is `role` and `content` only.
+4. Optional: `review_study`. Send `suggested_edits` to `update_study` as-is, or skip it when it is `null`. Nothing is applied for you.
 5. If targeting in-product: `create_research_trigger` (always paused). Hand `activation_url` to the human. Agents cannot activate.
-6. If manual: when `next_step` is share and the link is not disabled, give the human `interview_link` to send
+6. If manual: `next_step` is `update_study` while a ready review still has unapplied edits. After the guide matches those edits, or when there are no edits, `share` is correct if a terminal simulation or review exists and completed interviews are still 0. When `next_step` is share and the link is not disabled, give the human `interview_link` (`https://app.usercall.co/interview/...`) to send.
 
 Never claim the trigger is live until a human has activated it.
 
 ### 8. Retrieve findings
 
-1. `get_study_status` until `complete` (do not treat running/analyzing payloads as findings)
+1. `get_study_status` until `complete`. Zero interviews is `not_started`. `running` means an interview is underway. Do not treat `running` or `analyzing` payloads as findings.
 2. `get_study_results` with `format=summary` (use `full` only if a transcript quote is required)
 
 ### 9. Return evidence

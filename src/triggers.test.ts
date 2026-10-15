@@ -415,8 +415,10 @@ function orchestrationHits(snippet: string, toolNames: string[]) {
     const match = snippet.match(pattern);
     if (match?.[0]) hits.push(match[0]);
   }
+  // Quoted tokens are returned JSON values (for example next_step "update_study"), not calls.
+  const unquoted = snippet.replace(/"[^"]*"/g, " ");
   for (const name of toolNames) {
-    if (new RegExp(`\\b${name}\\b`).test(snippet)) hits.push(name);
+    if (new RegExp(`\\b${name}\\b`).test(unquoted)) hits.push(name);
   }
   return hits;
 }
@@ -437,6 +439,9 @@ test("MCP copy describes each tool without model-behavior or cross-tool instruct
     "onboarding drop-off and failed actions",
     "themes, insights, and verbatim quotes",
     "users who prefer voice",
+    'next_step is "update_study"',
+    "the person did not do the thing the study is about",
+    "call_id, timezone, and timestamps are absent",
   ]) {
     assert.deepEqual(orchestrationHits(allowed, toolNames), [], allowed);
   }
@@ -467,6 +472,36 @@ test("MCP copy describes each tool without model-behavior or cross-tool instruct
     assert.equal(hidden.test(snippet), false, snippet);
     assert.deepEqual(orchestrationHits(snippet, toolNames), [], snippet);
   }
+});
+
+test("study descriptions match the Agent API JSON", () => {
+  const byName = Object.fromEntries(
+    STUDY_TOOL_CATALOG.map((tool) => [tool.name, tool.description]),
+  ) as Record<string, string>;
+
+  assert.match(byName.create_study ?? "", /HTTP 200/);
+  assert.match(byName.create_study ?? "", /https:\/\/app\.usercall\.co\/interview\//);
+  assert.match(byName.simulate_interview ?? "", /status "running"/);
+  assert.match(byName.simulate_interview ?? "", /simulation_id/);
+  assert.match(
+    byName.simulate_interview ?? "",
+    /did not do the thing the study is about/,
+  );
+  assert.match(byName.simulate_interview ?? "", /1–80/);
+  assert.match(byName.simulate_interview ?? "", /1–4000/);
+  assert.match(byName.simulate_interview ?? "", /"agent"/);
+  assert.match(byName.simulate_interview ?? "", /"user"/);
+  assert.match(byName.simulate_interview ?? "", /call_id, timezone, and timestamps are absent/);
+  assert.match(byName.review_study ?? "", /keeps findings/);
+  assert.match(byName.review_study ?? "", /suggested_edits/);
+  assert.match(byName.review_study ?? "", /"update_study"/);
+  assert.match(byName.review_study ?? "", /null when there is nothing to change/);
+  assert.match(byName.review_study ?? "", /Nothing is applied/);
+  assert.match(byName.get_study_status ?? "", /status not_started/);
+  assert.match(byName.get_study_status ?? "", /running means an interview is underway/);
+  assert.match(byName.get_study_status ?? "", /next_step is "update_study"/);
+  assert.match(byName.get_study_status ?? "", /next_step is share/);
+  assert.match(byName.get_study_status ?? "", /completed_interviews is still 0/);
 });
 
 test("the interview skill keeps create, simulate, then review", () => {
@@ -528,9 +563,13 @@ test("key_research_goal alone still creates a study", async () => {
       method: init?.method,
       body: typeof init?.body === "string" ? init.body : undefined,
     };
-    return new Response(JSON.stringify({ study_id: STUDY_ID, interview_link: "https://call.example" }), {
-      status: 201,
-    });
+    return new Response(
+      JSON.stringify({
+        study_id: STUDY_ID,
+        interview_link: "https://app.usercall.co/interview/example",
+      }),
+      { status: 200 },
+    );
   });
 
   const goal = "Why do invited teammates stop before they send the invite?";
@@ -543,7 +582,14 @@ test("key_research_goal alone still creates a study", async () => {
   assert.equal(seen?.method, "POST");
   assert.equal(seen?.url, "https://app.usercall.test/api/v1/agent/studies");
   assert.deepEqual(JSON.parse(seen?.body ?? "{}"), { key_research_goal: goal });
-  const note = JSON.parse(result.content[0]?.text ?? "{}")._note as string;
+  const created = JSON.parse(result.content[0]?.text ?? "{}") as {
+    study_id?: string;
+    interview_link?: string;
+    _note?: string;
+  };
+  assert.equal(created.study_id, STUDY_ID);
+  assert.equal(created.interview_link, "https://app.usercall.co/interview/example");
+  const note = created._note ?? "";
   assert.match(note, /Study created with 1 interview slot/);
   assert.deepEqual(
     orchestrationHits(note, ["simulate_interview", "review_study", "update_study", "list_studies"]),

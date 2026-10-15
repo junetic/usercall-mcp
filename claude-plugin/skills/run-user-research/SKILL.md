@@ -12,7 +12,7 @@ Turn a broad research ask into a Usercall interview study, a solid guide, and (w
 1. Clarify the research question and who to learn from.
 2. Call `list_studies` and reuse a matching study when one already exists.
 3. Otherwise `create_study` with a clear `key_research_goal`.
-4. `simulate_interview` (start, then poll with `simulation_id`) until the guide looks solid; use `review_study` / `update_study` if needed.
+4. `simulate_interview` (start, then read with `simulation_id`) until the guide looks solid. Omit `persona` unless you need a specific one. If `review_study` returns `suggested_edits`, send that body to `update_study` as-is.
 5. Share the participant link only when the user asks; do not message participants yourself.
 6. Optionally prepare a targeted research trigger after `list_trigger_events` / schema checks; leave activation to a human.
 7. Poll `get_study_status`; when complete, `get_study_results` and present themes with verbatim quotes.

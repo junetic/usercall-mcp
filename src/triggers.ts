@@ -268,7 +268,7 @@ export const TRIGGER_TOOL_CATALOG: TriggerToolMeta[] = [
     name: "list_studies",
     title: "List interview studies",
     description:
-      "List interview studies on this account so an existing question about churn, onboarding, or a failed action can be reused. Returns study_id, interview_link, interview_mode, and trigger_eligible. trigger_eligible is false when the study has no interview link. Does not create or edit a study.",
+      "List interview studies on this account so an existing question about churn, onboarding, or a failed action can be reused. Returns study_id, interview_link, interview_mode, and trigger_eligible. interview_link is an https://app.usercall.co/interview/ URL. trigger_eligible is false when the study has no interview link. Does not create or edit a study.",
     annotations: readOnly,
   },
   {
