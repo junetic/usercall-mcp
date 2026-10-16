@@ -31,7 +31,7 @@ Use the Usercall MCP (`usercall`) to create a study, share the interview link, t
 - `interview_mode`: `voice` (default), `text`, or `voice_and_text`.
 - `languages`: optional locale list. One locale turns the language picker off; two or more turn it on.
 - A simulation is not an interview and does not change `completed_interviews`. Cap is 5 simulations per account per UTC day; a 429 means stop for the day.
-- `create_study` success is HTTP 200. `interview_link` is `https://app.usercall.co/interview/...`.
+- `create_study` success is HTTP 201. `interview_link` is `https://app.usercall.co/interview/...`.
 - `review_study` costs 1 credit. Short credits return `checkout_url`. Do not send `call_ids`. `suggested_edits` is not applied; send it to `update_study` as-is, or skip it when it is `null`.
 - Optional `study_media`: `image` (direct image URL) or `prototype` (Figma proto URL). Media is web-only; phone callers will not see it.
 - If `create_study` returns HTTP 402, give the user `checkout_url` so they can add credits.
