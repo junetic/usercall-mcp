@@ -33,6 +33,24 @@ Add **`https://mcp.usercall.co`** as a remote MCP connector / custom connector.
 - Docs: [app.usercall.co/docs/mcp](https://app.usercall.co/docs/mcp)
 - Cursor Directory / Grok Bot: this repo ships `.mcp.json` so [cursor.directory](https://cursor.directory) can install the hosted connector. Grok Bot cannot run the local `npx` package.
 
+## Install in Cursor
+
+**Community.** Already listed at [cursor.directory/plugins/usercall](https://cursor.directory/plugins/usercall).
+
+**Official Marketplace.** Once the listing is live, install from the [Cursor Marketplace](https://cursor.com/marketplace). Submit the repo at [cursor.com/marketplace/publish](https://cursor.com/marketplace/publish).
+
+**Manual.** Add the hosted MCP. OAuth sign-in, no API key.
+
+```json
+{
+  "mcpServers": {
+    "usercall": {
+      "url": "https://mcp.usercall.co"
+    }
+  }
+}
+```
+
 ### This package: local / API-key / machine-to-machine
 
 Use `@usercall/mcp` over stdio when you want a Bearer API key (scripts, local clients, M2M).
