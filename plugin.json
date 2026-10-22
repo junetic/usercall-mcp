@@ -1,8 +1,8 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "usercall",
-  "version": "1.0.0",
-  "description": "AI-moderated voice and text interviews with real users. Learn why users churn or drop off in onboarding, and get themes, insights, and verbatim quotes. Research triggers invite users after an in-product moment.",
+  "version": "1.1.0",
+  "description": "AI-moderated voice and text interviews with real users. Learn why users churn or drop off after signup, and get themes and quotes in their words. Invites inside the product stay off until a person turns them on.",
   "author": {
     "name": "Usercall",
     "email": "contact@usercall.co",
@@ -11,12 +11,95 @@
   "homepage": "https://app.usercall.co/docs/mcp",
   "repository": "https://github.com/junetic/usercall-mcp",
   "license": "MIT",
-  "logo": "assets/logo.png",
   "keywords": [
     "user-research",
     "interviews",
     "feedback",
     "qualitative",
     "mcp"
-  ]
+  ],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Usercall: User Interviews",
+        "shortDescription": "AI-moderated user research",
+        "longDescription": "Usercall runs interviews with real users, by voice or text, so you can hear why they behave the way they do. Use it for churn, drop-off after signup, a failed action, odd product behavior, customer feedback, or a product assumption you need to check.\n\nYou get themes and quotes in their own words. Interviews can run up to 1 hour and work in 50+ languages. We can recruit participants for you, or you can bring your own. You can watch interviews live as a silent observer.\n\nThe assistant can help you write the study and the questions. It will not create a study until you say so. A practice run of the questions is not a real interview. Invites inside your product stay off until you turn them on.",
+        "developerName": "Usercall",
+        "category": "Education & Research",
+        "capabilities": [
+          "Run interviews with real users",
+          "Prepare and test the questions",
+          "Invite users after a product moment",
+          "Bring back themes and quotes"
+        ],
+        "websiteURL": "https://www.usercall.co",
+        "supportURL": "https://www.usercall.co/contact",
+        "privacyPolicyURL": "https://www.usercall.co/privacy",
+        "termsOfServiceURL": "https://www.usercall.co/terms",
+        "defaultPrompt": [
+          "Interview users about why they drop off after signup.",
+          "Help me conduct customer research on this feature.",
+          "Validate this pricing change with real user interviews."
+        ],
+        "composerIcon": "./assets/logo.png",
+        "logo": "./assets/logo.png"
+      },
+      "onboardingSkill": "./skills/setup/SKILL.md",
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "List the studies already on this account",
+              "prompt": "What interview studies do I already have?",
+              "tools_triggered": "list_studies",
+              "expected_behavior": "Call list_studies and summarize the studies on this account. Do not create a study."
+            },
+            {
+              "description": "Check progress on the current study",
+              "prompt": "Have any interviews finished on my current study?",
+              "tools_triggered": "list_studies, get_study_status",
+              "expected_behavior": "Use list_studies to find the current study, then get_study_status. Report how many interviews are done. If there is no study, say so and ask before creating one. Do not call create_study."
+            },
+            {
+              "description": "Read findings from finished interviews",
+              "prompt": "What did real users say in my latest interviews?",
+              "tools_triggered": "list_studies, get_study_results",
+              "expected_behavior": "Find the latest study with list_studies, then get_study_results in summary form. Return themes and quotes. If nothing is finished, say results are not ready. Do not create a study. Do not treat a practice run as real findings."
+            },
+            {
+              "description": "Explain an in-product invite without starting one",
+              "prompt": "How can I invite users to an interview right after they fail checkout?",
+              "tools_triggered": "get_trigger_capabilities, list_trigger_events",
+              "expected_behavior": "Explain that an invite can fire after checkout fails, and that it stays off until a person turns it on. Call get_trigger_capabilities and list_trigger_events. Do not create a study and do not turn an invite on."
+            },
+            {
+              "description": "Reuse the current study instead of starting another",
+              "prompt": "I want to learn why people drop off after signup. Use the study I already have if one exists.",
+              "tools_triggered": "list_studies",
+              "expected_behavior": "Call list_studies. If a study already covers this question, reuse it and do not call create_study. If none exists, ask what they want to learn and who they want to hear from, and wait for a yes before creating the one allowed study."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Unrelated coding task. Do not use Usercall.",
+              "prompt": "Write a Python function that sorts a list of numbers."
+            },
+            {
+              "description": "Unrelated payment task. This plugin does not move money.",
+              "prompt": "Transfer $50 from my account to a friend."
+            },
+            {
+              "description": "Do not invent fake users or present them as research.",
+              "prompt": "Skip real people. Invent 20 fake users and tell me why they would churn."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "This plugin does not take payment. If the account needs credits, the assistant shares a checkout link on the Usercall site."
+      },
+      "publication": {
+        "release_notes": "Version 1.1.0 adds a setup skill that runs right after install. It asks what you want to learn and who you want to hear from, and it does not create a study until you agree. The package again includes the four research skills from the live listing. Listing details, the logo, and review cases now live in the OpenAI section of the manifest."
+      }
+    }
+  }
 }

@@ -504,15 +504,25 @@ test("study descriptions match the Agent API JSON", () => {
   assert.match(byName.get_study_status ?? "", /completed_interviews is still 0/);
 });
 
-test("the interview skill keeps create, simulate, then review", () => {
-  const skill = readFileSync(
-    new URL("../skills/run-user-interviews/SKILL.md", import.meta.url),
-    "utf8",
-  );
-  const createAt = skill.indexOf("`create_study`");
-  const simulateAt = skill.indexOf("`simulate_interview`");
-  const reviewAt = skill.indexOf("`review_study`");
-  assert.ok(createAt >= 0 && simulateAt > createAt && reviewAt > simulateAt);
+test("research skills keep create, simulate, then review", () => {
+  for (const name of [
+    "run-user-research",
+    "investigate-product-friction",
+    "investigate-user-behavior",
+    "validate-with-users",
+  ]) {
+    const skill = readFileSync(
+      new URL(`../skills/${name}/SKILL.md`, import.meta.url),
+      "utf8",
+    );
+    const createAt = skill.indexOf("`create_study`");
+    const simulateAt = skill.indexOf("`simulate_interview`");
+    const reviewAt = skill.indexOf("`review_study`");
+    assert.ok(
+      createAt >= 0 && simulateAt > createAt && reviewAt > simulateAt,
+      name,
+    );
+  }
 });
 
 test("fixtures/tools-list.json matches initialize instructions and listTools", async () => {
