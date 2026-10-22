@@ -28,6 +28,7 @@ Use this before creating the standalone GitHub repo or publishing.
 - [ ] `LICENSE` is present.
 - [ ] Package metadata in `package.json` is correct.
 - [ ] `.mcp.json`, `mcp.json`, and `plugin.json` still point at `https://mcp.usercall.co`.
+- [ ] `pnpm plugin:check` passes. It validates root `plugin.json` against the Agent Plugins schema, `.cursor-plugin/plugin.json` against the Cursor schema (no `author.url`), and writes `dist/usercall-chatgpt-plugin-<version>.zip`. Do not upload that ZIP unless someone asks to submit.
 
 ## Cursor Directory
 

@@ -33,6 +33,16 @@ Add **`https://mcp.usercall.co`** as a remote MCP connector / custom connector.
 - Docs: [app.usercall.co/docs/mcp](https://app.usercall.co/docs/mcp)
 - Cursor Directory / Grok Bot: this repo ships `.mcp.json` so [cursor.directory](https://cursor.directory) can install the hosted connector. Grok Bot cannot run the local `npx` package.
 
+### ChatGPT plugin package
+
+Root `plugin.json`, `mcp.json`, and `skills/` are the ChatGPT submission package (version in `plugin.json`, not `package.json`). Validate it and write the ZIP with:
+
+```bash
+pnpm plugin:check
+```
+
+The ZIP is `dist/usercall-chatgpt-plugin-<version>.zip`. Do not upload it unless someone asks to submit.
+
 ## Install in Cursor
 
 **Community.** Already listed at [cursor.directory/plugins/usercall](https://cursor.directory/plugins/usercall).

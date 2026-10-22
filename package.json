@@ -23,7 +23,8 @@
     "start": "node dist/index.js",
     "smoke": "tsx scripts/smoke.ts",
     "smoke:triggers": "tsx scripts/smoke-triggers.ts",
-    "test": "node --import tsx --test \"src/**/*.test.ts\""
+    "test": "node --import tsx --test \"src/**/*.test.ts\"",
+    "plugin:check": "node scripts/validate-plugin-package.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.17.5",
@@ -31,6 +32,8 @@
   },
   "devDependencies": {
     "@types/node": "^24.3.0",
+    "ajv": "^8.18.0",
+    "ajv-formats": "^3.0.1",
     "tsx": "^4.20.3",
     "typescript": "^5.9.2"
   }
