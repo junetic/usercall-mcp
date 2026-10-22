@@ -23,9 +23,9 @@ Use short sentences. If the user gives a direct instruction, follow it.
 
 ## Steps
 
-1. Clarify what they want to learn and who they want to hear from.
+1. Gather the same three things the app asks, one or two at a time. Skip any they already answered. What decision or problem will this research inform? Examples: "Discover unmet needs & pain points" or "Test a new concept or positioning". Describe the product or project and who the users are. Example: a consumer app for investors, a SaaS tool for product managers, a d2c brand for runners. Anything important to keep in mind is optional. Question count settings are optional too. `create_study` has no question-count field, so put a shorter or longer guide in the keep-in-mind answer. Restate the answers and confirm before you create a study.
 2. Call `list_studies` and reuse a matching study when one already exists.
-3. If they agreed and no study fits, call `create_study` with a clear `key_research_goal`. `business_context` is optional.
+3. If they agreed and no study fits, call `create_study`. `key_research_goal` is the decision or problem. `business_context` is the product and who the users are. Omit it if they skipped it or it is under 5 characters. Do not copy the goal into it. `additional_context_prompt` is anything to keep in mind. Omit it if they skipped it. `target_interviews` only if they named how many people to interview.
 4. `simulate_interview` is a practice run of the questions, not a real interview. Omit `simulation_id` to start. The start returns immediately with status running and `simulation_id`. Call again with that id. Do not poll inside the tool call. Omit `persona` unless a specific one is required. If it fails, call `update_study`, then try the practice run again. Stop for the day on HTTP 429.
 5. If `review_study` returns `suggested_edits`, send that body to `update_study` as-is. Nothing is applied for you. Skip it when it is null.
 6. Share the participant link only when the user asks. Do not message participants yourself.

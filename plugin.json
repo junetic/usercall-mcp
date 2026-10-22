@@ -76,7 +76,7 @@
               "description": "Reuse the current study instead of starting another",
               "prompt": "I want to learn why people drop off after signup. Use the study I already have if one exists.",
               "tools_triggered": "list_studies",
-              "expected_behavior": "Call list_studies. If a study already covers this question, reuse it and do not call create_study. If none exists, ask what they want to learn and who they want to hear from, and wait for a yes before creating the one allowed study."
+              "expected_behavior": "Call list_studies. If a study already covers this question, reuse it and do not call create_study. If none exists, ask what decision the research should inform and who the product is for, then wait for a yes before creating the one allowed study."
             }
           ],
           "negative": [
